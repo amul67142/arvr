@@ -2,72 +2,26 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useLoader, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
-import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js'
-import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'
 
 import { useModelObjects } from '../../hooks/useModelObjects'
 import { useViewer } from '../../state/viewerStore'
+import { buildLoaderExtensions } from '../../utils/loaderUtils'
 import { applyHighlightState, disposeHighlightCache } from '../../utils/materialUtils'
-import { disposeModel, findOwnerEntry } from '../../utils/modelUtils'
+import { disposeModel, findFloorEntry, findOwnerEntry } from '../../utils/modelUtils'
 
-/**
- * Decoders are served from /public rather than a CDN — real estate demos happen
- * on conference wifi, and a failed decoder fetch would mean a blank screen.
- */
-const DRACO_PATH = '/draco/'
-const BASIS_PATH = '/basis/'
-
-/**
- * Filename of a URL, lowercased. Companion files are keyed by basename because
- * a .gltf may reference them as "scene.bin" or "textures/wall.jpg" while the
- * user dropped a flat selection of files.
- */
-function resourceKey(url) {
-  const withoutQuery = url.split('?')[0].split('#')[0]
-  return decodeURIComponent(withoutQuery.split('/').pop() ?? '').toLowerCase()
-}
-
-/**
- * Configure a GLTFLoader for a locally-uploaded file.
- *
- * The URL modifier is what makes multi-file .gltf work: the .gltf's relative
- * references ("scene.bin", "textures/wall.jpg") are rewritten to the blob URLs
- * created for the companion files the user dropped alongside it.
- */
-function buildLoaderExtensions(resources, renderer) {
-  return (loader) => {
-    // Deliberately the default manager rather than a private one: drei's
-    // useProgress listens to it, and that is what drives the loading screen.
-    const manager = THREE.DefaultLoadingManager
-
-    manager.setURLModifier((url) => {
-      // Embedded resources are already self-contained.
-      if (url.startsWith('data:')) return url
-
-      // Relative references are resolved against the .gltf's own blob URL
-      // first, so by the time they arrive here they look like
-      // "blob:http://host/scene.bin". Matching on the filename is what maps
-      // them back to the companion the user supplied. The model's own blob URL
-      // ends in a UUID, which is never a key, so it passes through untouched.
-      return resources.get(resourceKey(url)) ?? url
-    })
-
-    const draco = new DRACOLoader(manager).setDecoderPath(DRACO_PATH)
-    loader.setDRACOLoader(draco)
-
-    const ktx2 = new KTX2Loader(manager)
-      .setTranscoderPath(BASIS_PATH)
-      .detectSupport(renderer)
-    loader.setKTX2Loader(ktx2)
-
-    loader.setMeshoptDecoder(MeshoptDecoder)
-  }
-}
+const prettyName = (name) => name.replace(/_/g, ' ')
 
 export default function UploadedModel({ source }) {
   const renderer = useThree((state) => state.gl)
-  const { setModel, selectTower, clearSelection, selection, hoverLabelRef } = useViewer()
+  const {
+    setModel,
+    selectTower,
+    selectFloor,
+    clearSelection,
+    selection,
+    hoverLabelRef,
+    floorPreviewRef,
+  } = useViewer()
 
   const extensions = useMemo(
     () => buildLoaderExtensions(source.resources, renderer),
@@ -79,26 +33,38 @@ export default function UploadedModel({ source }) {
 
   const hoveredRef = useRef(null)
   const selectedRef = useRef(null)
+  // Floors only light up inside the selected building: the one under the
+  // pointer, else the one hovered in the panel, else the one selected.
+  const hoveredFloorRef = useRef(null)
+  const previewFloorRef = useRef(null)
+  const selectedFloorRef = useRef(null)
   const clearFrame = useRef(0)
 
   useEffect(() => {
     if (model) setModel(model)
   }, [model, setModel])
 
-  /** Resolve the visual state of one building from hover + selection. */
+  /** Resolve the visual state of one building (and its active floor). */
   const paint = useCallback((entry) => {
     if (!entry) return
-    if (entry === selectedRef.current) applyHighlightState(entry.object, 'selected')
+    const isSelected = entry === selectedRef.current
+    if (isSelected) applyHighlightState(entry.object, 'selected')
     else if (entry === hoveredRef.current) applyHighlightState(entry.object, 'hover')
     else applyHighlightState(entry.object, 'default')
+
+    if (isSelected) {
+      const floor = hoveredFloorRef.current ?? previewFloorRef.current ?? selectedFloorRef.current
+      if (floor) applyHighlightState(floor.object, 'floor')
+    }
   }, [])
 
   const setHovered = useCallback(
-    (entry) => {
-      if (hoveredRef.current === entry) return
+    (entry, floor = null) => {
+      if (hoveredRef.current === entry && hoveredFloorRef.current === floor) return
 
       const previous = hoveredRef.current
       hoveredRef.current = entry
+      hoveredFloorRef.current = floor
       paint(previous)
       paint(entry)
 
@@ -106,7 +72,11 @@ export default function UploadedModel({ source }) {
 
       const label = hoverLabelRef.current
       if (label) {
-        label.textContent = entry?.name ?? ''
+        label.textContent = !entry
+          ? ''
+          : floor
+            ? `${prettyName(entry.name)} · Floor ${floor.number}`
+            : entry.name
         label.dataset.visible = entry ? 'true' : 'false'
       }
     },
@@ -120,17 +90,47 @@ export default function UploadedModel({ source }) {
     const next = selection
       ? model.towers.find((entry) => entry.id === selection.id) ?? null
       : null
+    const nextFloor =
+      next && selection?.floor
+        ? next.floors?.find((floor) => floor.id === selection.floor.id) ?? null
+        : null
 
     const previous = selectedRef.current
     selectedRef.current = next
+    selectedFloorRef.current = nextFloor
+    if (previous !== next) previewFloorRef.current = null
     paint(previous)
     paint(next)
   }, [model, paint, selection])
 
+  // Let the panel preview a floor by hovering its number.
+  useEffect(() => {
+    if (!floorPreviewRef) return
+    floorPreviewRef.current = (floorId) => {
+      const tower = selectedRef.current
+      const floor = floorId ? tower?.floors?.find((candidate) => candidate.id === floorId) ?? null : null
+      if (previewFloorRef.current === floor) return
+      previewFloorRef.current = floor
+      paint(tower)
+    }
+    return () => {
+      floorPreviewRef.current = null
+    }
+  }, [floorPreviewRef, paint])
+
   const handlePointerMove = useCallback(
     (event) => {
+      // R3F delivers the move to every intersected mesh, nearest first. Without
+      // this the last — farthest — call wins, so where two towers overlap on
+      // screen the hover lit the one behind while a click (which already stops
+      // propagation) picked the one in front.
+      event.stopPropagation()
       cancelAnimationFrame(clearFrame.current)
-      setHovered(findOwnerEntry(event.object))
+
+      const entry = findOwnerEntry(event.object)
+      // Inside the selected building, the pointer is choosing a floor.
+      const floor = entry && entry === selectedRef.current ? findFloorEntry(event.object) : null
+      setHovered(entry, floor)
 
       const label = hoverLabelRef.current
       if (label && hoveredRef.current) {
@@ -157,9 +157,18 @@ export default function UploadedModel({ source }) {
       const entry = findOwnerEntry(event.object)
       if (!entry) return
       event.stopPropagation()
+
+      // A second click on the selected building picks the floor under it.
+      if (entry === selectedRef.current) {
+        const floor = findFloorEntry(event.object)
+        if (floor) {
+          selectFloor(entry, floor)
+          return
+        }
+      }
       selectTower(entry)
     },
-    [selectTower],
+    [selectFloor, selectTower],
   )
 
   /**

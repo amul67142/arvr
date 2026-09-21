@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import gsap from 'gsap'
 
-import { totalBytes } from '../../hooks/useUploadedModel'
+import { totalBytes } from '../../experience/assetSources'
 import { formatBytes } from '../../utils/modelUtils'
 import { AlertIcon, ArrowIcon, CloseIcon, CubeIcon, UploadIcon } from '../common/Icons'
 
@@ -40,7 +40,7 @@ async function filesFromDrop(dataTransfer) {
   return collected.length > 0 ? collected : Array.from(dataTransfer.files ?? [])
 }
 
-export default function ModelUploader({ onSelect, notice }) {
+export default function ModelUploader({ onSelect, onLoadDemo, notice }) {
   const rootRef = useRef(null)
   const inputRef = useRef(null)
   const dragDepth = useRef(0)
@@ -48,6 +48,7 @@ export default function ModelUploader({ onSelect, notice }) {
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState(null)
   const [staged, setStaged] = useState(null)
+  const [demoState, setDemoState] = useState('idle') // idle | loading | failed
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -202,6 +203,38 @@ export default function ModelUploader({ onSelect, notice }) {
             }}
           />
         </div>
+
+        {onLoadDemo ? (
+          <div data-reveal className="mt-5 flex flex-wrap items-center justify-between gap-4 border border-white/10 bg-white/[0.02] px-6 py-5">
+            <div className="min-w-0">
+              <p className="label text-white/45">Or explore the demo</p>
+              <p className="mt-2 text-sm text-white/75">
+                Aravali Vista — masterplan, 3BHK walkthrough and amenities
+              </p>
+              {demoState === 'failed' ? (
+                <p className="mt-2 text-xs text-red-300/80">
+                  The demo files could not be loaded. Try again.
+                </p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              disabled={demoState === 'loading'}
+              onClick={async () => {
+                setDemoState('loading')
+                try {
+                  await onLoadDemo()
+                } catch {
+                  setDemoState('failed')
+                }
+              }}
+              className="label flex items-center gap-3 border border-white/25 px-6 py-3.5 text-white/85 transition-colors duration-500 hover:bg-white hover:text-neutral-950 disabled:cursor-wait disabled:opacity-60"
+            >
+              {demoState === 'loading' ? 'Loading Demo…' : 'Load Demo Project'}
+              <ArrowIcon size={15} />
+            </button>
+          </div>
+        ) : null}
 
         {error ? (
           <div className="mt-5 flex items-start gap-3 border border-red-400/25 bg-red-400/[0.06] px-5 py-4">

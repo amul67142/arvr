@@ -1,4 +1,4 @@
-# Interactive Real Estate Experience — Phase 1
+# Interactive Real Estate Experience
 
 A frontend-only 3D project viewer for real-estate sales. Upload a `.glb` or
 `.gltf` masterplan from your computer and explore it in the browser: orbit the
@@ -133,7 +133,78 @@ src/
   which keeps pointer moves cheap on large scenes. Shadows switch off above
   2,500 meshes.
 
-## What Phase 1 deliberately does not do
+## Demo project and walkthroughs
+
+On the upload screen, **Load Demo Project** opens a complete project built from
+the files in `public/demo/`:
+
+| View | Type | File |
+| --- | --- | --- |
+| Masterplan | 3D | `masterplan.glb`, with 4 towers and a clubhouse |
+| Tower D Exterior | Image | `tower-d-render.png` |
+| 3BHK Walkthrough | Walkthrough | `unit-3bhk.glb` (about 11 MB) |
+| Amenities Walkthrough | Walkthrough | `amenities.glb` (about 8.7 MB) |
+
+Demo files are bundled with the app, so the project restores itself after a
+refresh. Your own uploads still don't persist.
+
+**Masterplan → floor → unit → inside.**
+1. Click a tower, then choose a floor from the grid or click the floor on the
+   building. The floor lights up in brass and the camera moves to it.
+2. The panel lists the homes on that floor, with status, super area, facing and
+   price. Pricing is the tower's ₹/sqft × super area, plus a floor rise above
+   the 4th floor.
+3. **Walkthrough** opens the view linked to that unit type. In the editor, you
+   can relink unit types under *Unit Type Links*.
+4. Clicking the clubhouse offers **Explore Amenities**.
+
+All tower, unit and pricing data in `src/data/towerMetadata.js` is illustrative.
+
+**Inside a walkthrough.**
+- Drag to look around. Move with WASD or the arrow keys, and hold Shift to go
+  faster.
+- Click the floor to walk to that spot.
+- Jump to any room from the list or the plan.
+- Toggle day and night; lamps come on at night.
+- Walls and furniture block you, and you step up onto kerbs and decks.
+
+### Walkthrough naming contract
+
+Any `.glb`/`.gltf` added as a *Walkthrough* view works if its nodes follow
+these names. glTF `extras` arrive as three.js `userData`.
+
+| Node name | Meaning |
+| --- | --- |
+| `Room_*` / `Zone_*` | A walkable floor with its own identity. extras: `{ label, order, area?, view: { x, z, yaw } }` |
+| `Walk_*` | A walkable floor with no identity, such as paths or steps |
+| `Water_*` | Visible only: you can neither walk on it nor bump into it |
+| `Spawn` | The starting position. extras: `{ yaw }` |
+| `Light_*` | A night light. extras: `{ intensity, color, distance }` |
+| `Ceiling_*`, `Ground_Far`, `Rug_*` | Passive: never block movement |
+| anything else | A collider |
+
+Yaw is in radians: 0 looks down −Z, and positive values turn toward −X.
+
+### Rebuilding the demo assets
+
+```bash
+node scripts/fetch-polyhaven.mjs      # CC0 models/textures -> .cache/polyhaven
+node scripts/build-apartment.mjs      # -> public/demo/unit-3bhk.glb
+node scripts/build-amenities.mjs      # -> public/demo/amenities.glb
+node scripts/make-project-model.mjs   # -> public/demo/masterplan.glb
+```
+
+- The architecture is generated in code.
+- Furniture, decor and textures come from Poly Haven. They are merged,
+  simplified, instanced, re-compressed as WebP and Meshopt-compressed with
+  gltf-transform.
+- Credits are in `public/demo/CREDITS.md`.
+
+## What Phase 1 deliberately did not do
+
+(Kept for history. The demo project above now covers floor selection, unit
+selection and walkthroughs.)
+
 
 No floor selection, unit selection, inventory, pricing filters, walkthroughs,
 CRM, analytics or AI. The seams are in place: `selection` in the viewer context

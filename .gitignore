@@ -25,3 +25,6 @@ dist-ssr
 
 # Downloaded test models (regenerate by re-downloading; see README)
 samples/downloaded/
+
+# Raw downloads for the demo asset build (re-fetch with scripts/fetch-polyhaven.mjs)
+.cache/

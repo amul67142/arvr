@@ -1,54 +1,26 @@
-import { useCallback, useState } from 'react'
-
-import ErrorState from './components/common/ErrorState'
+import ProjectEditor from './components/editor/ProjectEditor'
 import ModelUploader from './components/upload/ModelUploader'
-import ProjectViewer from './components/viewer/ProjectViewer'
-import { useUploadedModel } from './hooks/useUploadedModel'
-import { ViewerProvider } from './state/ViewerProvider'
+import { ExperienceProvider } from './experience/ExperienceProvider'
+import { useExperience } from './experience/experienceStore'
 
 /**
- * Upload -> Loading -> Viewer, with no navigation and no page reload.
- * The selected file lives only in React state and as a blob URL.
+ * No project yet: the Phase 1 upload screen, unchanged. The first model
+ * uploaded becomes the project's Masterplan view and opens in the editor.
+ *
+ * A project already in storage skips straight to the editor — its views are
+ * remembered, but their files are not, and the editor asks for them.
  */
+function AppShell() {
+  const { project, createProject, loadDemoProject } = useExperience()
+
+  if (!project) return <ModelUploader onSelect={createProject} onLoadDemo={loadDemoProject} />
+  return <ProjectEditor />
+}
+
 export default function App() {
-  const { source, open, close } = useUploadedModel()
-  const [failedName, setFailedName] = useState(null)
-
-  const handleSelect = useCallback(
-    (file, companions) => {
-      setFailedName(null)
-      open(file, companions)
-    },
-    [open],
-  )
-
-  const handleExit = useCallback(() => {
-    setFailedName(null)
-    close()
-  }, [close])
-
-  const handleError = useCallback(() => {
-    setFailedName(source?.name ?? null)
-  }, [source])
-
-  if (failedName) {
-    return <ErrorState fileName={failedName} onRetry={handleExit} />
-  }
-
-  if (!source) {
-    return <ModelUploader onSelect={handleSelect} />
-  }
-
   return (
-    // Remounting on every upload guarantees a clean viewer: no stale selection,
-    // camera pose, inspector state or GPU resources carried between models.
-    <ViewerProvider key={source.id}>
-      <ProjectViewer
-        key={source.id}
-        source={source}
-        onExit={handleExit}
-        onError={handleError}
-      />
-    </ViewerProvider>
+    <ExperienceProvider>
+      <AppShell />
+    </ExperienceProvider>
   )
 }

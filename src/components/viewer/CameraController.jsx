@@ -112,9 +112,13 @@ export default function CameraController() {
 
     const pose = computeFocusPose(focusRequest.object, camera, {
       lateralShiftRatio: lateralShiftRatio({
-        infoPanelOpen: selection?.object === focusRequest.object,
+        // A floor focus belongs to the selected building, so the panel is open.
+        infoPanelOpen:
+          selection?.object === focusRequest.object ||
+          selection?.floor?.object === focusRequest.object,
         inspectorOpen,
       }),
+      ...(focusRequest.padding ? { padding: focusRequest.padding } : {}),
     })
 
     // A tight focus can sit closer than the project-wide minimum allows.

@@ -15,7 +15,18 @@ import TowerInfoPanel from './TowerInfoPanel'
 import UploadedModel from './UploadedModel'
 import ViewerControls from './ViewerControls'
 
-export default function ProjectViewer({ source, onExit, onError }) {
+/**
+ * The Phase 1 3D viewer, unchanged in behaviour. Two optional props let it sit
+ * inside a larger experience without knowing about one:
+ *
+ *   chrome  which surrounding controls to show. Every flag defaults to true,
+ *           so rendered on its own this is exactly the Phase 1 viewer.
+ *   paused  stops the render loop while the view is kept alive off-screen.
+ *           The scene, camera and selection all survive; nothing is drawn.
+ */
+export default function ProjectViewer({ source, onExit, onError, chrome = {}, paused = false }) {
+  const showInspector = chrome.showInspector !== false
+
   const rootRef = useRef(null)
   const fullscreen = useFullscreen(rootRef)
   const { model, hoverLabelRef, inspectorOpen, setInspectorOpen, clearSelection } =
@@ -38,6 +49,10 @@ export default function ProjectViewer({ source, onExit, onError }) {
   }, [model])
 
   useEffect(() => {
+    // A view kept alive off-screen must not react to keys meant for the
+    // view the buyer is actually looking at.
+    if (paused) return
+
     const onKeyDown = (event) => {
       if (event.key !== 'Escape') return
       if (inspectorOpen) setInspectorOpen(false)
@@ -46,7 +61,7 @@ export default function ProjectViewer({ source, onExit, onError }) {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [clearSelection, inspectorOpen, setInspectorOpen])
+  }, [clearSelection, inspectorOpen, paused, setInspectorOpen])
 
   return (
     <div ref={rootRef} className="relative h-full w-full overflow-hidden bg-neutral-950">
@@ -60,6 +75,7 @@ export default function ProjectViewer({ source, onExit, onError }) {
       />
 
       <Canvas
+        frameloop={paused ? 'never' : 'always'}
         shadows={{ type: THREE.PCFShadowMap }}
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
@@ -85,8 +101,13 @@ export default function ProjectViewer({ source, onExit, onError }) {
         className="glass label pointer-events-none fixed top-0 left-0 z-30 px-3.5 py-2 text-white/85 opacity-0 transition-opacity duration-300 data-[visible=true]:opacity-100"
       />
 
-      <ViewerControls source={source} onExit={onExit} fullscreen={fullscreen} />
-      <ModelInspector source={source} />
+      <ViewerControls
+        source={source}
+        onExit={onExit}
+        fullscreen={fullscreen}
+        chrome={chrome}
+      />
+      {showInspector ? <ModelInspector source={source} /> : null}
       <TowerInfoPanel />
 
       <LoadingOverlay ready={revealed} />

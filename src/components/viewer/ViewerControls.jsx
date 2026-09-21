@@ -15,7 +15,17 @@ function Divider() {
   return <span aria-hidden className="mx-1 h-5 w-px bg-white/12" />
 }
 
-export default function ViewerControls({ source, onExit, fullscreen }) {
+/**
+ * `chrome` flags hide the parts of the Phase 1 control set that an enclosing
+ * experience provides itself, or that a buyer should never see. All default to
+ * true, so standalone this renders exactly as before.
+ */
+export default function ViewerControls({ source, onExit, fullscreen, chrome = {} }) {
+  const showHeader = chrome.showHeader !== false
+  const showUpload = chrome.showUpload !== false
+  const showInspector = chrome.showInspector !== false
+  const showNotices = chrome.showNotices !== false
+
   const {
     model,
     timeOfDay,
@@ -30,32 +40,38 @@ export default function ViewerControls({ source, onExit, fullscreen }) {
   return (
     <>
       <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between p-6 md:p-8">
-        <div className="glass pointer-events-auto flex items-center gap-4 px-5 py-3.5">
-          <span className="text-white/70">
-            <CubeIcon size={16} />
-          </span>
-          <div className="min-w-0">
-            <p className="label text-white/45">Interactive Experience</p>
-            <p className="mt-1 max-w-[42vw] truncate text-[13px] font-light text-white/85 md:max-w-xs">
-              {source.name}
-            </p>
+        {showHeader ? (
+          <div className="glass pointer-events-auto flex items-center gap-4 px-5 py-3.5">
+            <span className="text-white/70">
+              <CubeIcon size={16} />
+            </span>
+            <div className="min-w-0">
+              <p className="label text-white/45">Interactive Experience</p>
+              <p className="mt-1 max-w-[42vw] truncate text-[13px] font-light text-white/85 md:max-w-xs">
+                {source.name}
+              </p>
+            </div>
+            <span className="hidden text-[11px] text-white/30 sm:block">
+              {formatBytes(source.size)}
+            </span>
           </div>
-          <span className="hidden text-[11px] text-white/30 sm:block">
-            {formatBytes(source.size)}
-          </span>
-        </div>
+        ) : (
+          <span />
+        )}
 
-        <button
-          type="button"
-          onClick={onExit}
-          className="glass ctrl pointer-events-auto px-5 py-3.5"
-        >
-          <UploadIcon size={15} />
-          <span className="label hidden sm:inline">Upload New Model</span>
-        </button>
+        {showUpload ? (
+          <button
+            type="button"
+            onClick={onExit}
+            className="glass ctrl pointer-events-auto px-5 py-3.5"
+          >
+            <UploadIcon size={15} />
+            <span className="label hidden sm:inline">Upload New Model</span>
+          </button>
+        ) : null}
       </header>
 
-      {towerCount === 0 && model ? (
+      {showNotices && towerCount === 0 && model ? (
         <div className="glass pointer-events-auto absolute top-28 left-1/2 z-20 w-[min(92vw,430px)] -translate-x-1/2 px-6 py-5 text-center md:top-32">
           <p className="text-sm font-light text-white/80">No named towers detected.</p>
           <p className="mt-2.5 text-xs leading-relaxed text-white/45">
@@ -100,15 +116,17 @@ export default function ViewerControls({ source, onExit, fullscreen }) {
             <span className="label hidden sm:inline">Reset View</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => setInspectorOpen(!inspectorOpen)}
-            data-active={inspectorOpen}
-            className="ctrl"
-          >
-            <LayersIcon size={15} />
-            <span className="label hidden sm:inline">Inspector</span>
-          </button>
+          {showInspector ? (
+            <button
+              type="button"
+              onClick={() => setInspectorOpen(!inspectorOpen)}
+              data-active={inspectorOpen}
+              className="ctrl"
+            >
+              <LayersIcon size={15} />
+              <span className="label hidden sm:inline">Inspector</span>
+            </button>
+          ) : null}
 
           <button type="button" onClick={fullscreen.toggle} className="ctrl">
             {fullscreen.isFullscreen ? (

@@ -123,19 +123,20 @@ function tower({ name, x, z, size, floors, accent }) {
     const y = base + floor * FLOOR_HEIGHT
     const label = String(floor + 1).padStart(2, '0')
 
-    // Slab edge reads as the balcony band from a distance.
+    // Each floor is one group — slab plus glazing — so the viewer can pick a
+    // whole floor as a single object. Named <Tower>_Floor_NN by convention.
     children.push(
-      box(`${name}_Floor_${label}`, M.Concrete_White, [x, y, z], [size + 1.4, 0.65, size + 1.4]),
-    )
-
-    // Glazing sits inboard of the slab so the band pattern stays legible.
-    children.push(
-      box(
-        `${name}_Glazing_${label}`,
-        floor % 6 === 5 ? M.Glass_Spandrel : M.Glass_Vision,
-        [x, y + 0.65, z],
-        [size - 0.6, FLOOR_HEIGHT - 0.65, size - 0.6],
-      ),
+      group(`${name}_Floor_${label}`, [
+        // Slab edge reads as the balcony band from a distance.
+        box(`${name}_Slab_${label}`, M.Concrete_White, [x, y, z], [size + 1.4, 0.65, size + 1.4]),
+        // Glazing sits inboard of the slab so the band pattern stays legible.
+        box(
+          `${name}_Glazing_${label}`,
+          floor % 6 === 5 ? M.Glass_Spandrel : M.Glass_Vision,
+          [x, y + 0.65, z],
+          [size - 0.6, FLOOR_HEIGHT - 0.65, size - 0.6],
+        ),
+      ]),
     )
   }
 
@@ -342,8 +343,13 @@ const binHeader = Buffer.alloc(8)
 binHeader.writeUInt32LE(binChunk.length, 0)
 binHeader.writeUInt32LE(0x004e4942, 4) // 'BIN'
 
+const glb = Buffer.concat([header, jsonHeader, jsonChunk, binHeader, binChunk])
 mkdirSync(dirname(outPath), { recursive: true })
-writeFileSync(outPath, Buffer.concat([header, jsonHeader, jsonChunk, binHeader, binChunk]))
+writeFileSync(outPath, glb)
+// Also published for the in-app demo project.
+const demoPath = resolve(here, '../public/demo/masterplan.glb')
+mkdirSync(dirname(demoPath), { recursive: true })
+writeFileSync(demoPath, glb)
 
 console.log(
   `wrote ${outPath}\n  ${nodes.length} nodes, ${topLevel.length} top-level objects, ` +

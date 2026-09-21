@@ -13,6 +13,10 @@ const WHITE = new THREE.Color(0xffffff)
 // Warm rather than pure white: a highlighted tower should read as lit from
 // within, not as a block of white plastic.
 const GLOW = new THREE.Color(0xfff0dc)
+// A chosen floor has to stand out from a building that is itself already
+// highlighted. On a pale facade a brighter white is invisible — hue is what
+// reads, so floors take a warm brass.
+const BRASS = new THREE.Color(0xe0ad62)
 
 /**
  * Emissive is absolute and colour lift is not, so the split matters: lean on
@@ -23,18 +27,21 @@ const GLOW = new THREE.Color(0xfff0dc)
 const STATES = {
   hover: { emissiveIntensity: 0.03, colorLift: 0.14 },
   selected: { emissiveIntensity: 0.07, colorLift: 0.24 },
+  // A single floor inside a selected building: clearly brighter than the
+  // building around it, still warm rather than neon.
+  floor: { emissiveIntensity: 0.42, colorLift: 0.55, tint: BRASS, glow: BRASS },
 }
 
-function makeVariant(material, { emissiveIntensity, colorLift }) {
+function makeVariant(material, { emissiveIntensity, colorLift, tint = WHITE, glow = GLOW }) {
   const variant = material.clone()
 
   if (variant.emissive) {
-    variant.emissive = GLOW.clone()
+    variant.emissive = glow.clone()
     variant.emissiveIntensity = emissiveIntensity
   }
 
   if (variant.color) {
-    variant.color = variant.color.clone().lerp(WHITE, colorLift)
+    variant.color = variant.color.clone().lerp(tint, colorLift)
   }
 
   variant.userData.__isHighlightVariant = true
@@ -55,7 +62,7 @@ function variantsFor(mesh, state) {
   return cache[state]
 }
 
-/** Apply 'default' | 'hover' | 'selected' to every mesh in a subtree. */
+/** Apply 'default' | 'hover' | 'selected' | 'floor' to every mesh in a subtree. */
 export function applyHighlightState(root, state) {
   if (!root) return
 

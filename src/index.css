@@ -121,7 +121,24 @@
   }
 }
 
+/* A view arriving: a slow fade with the faintest settle, like a cut in a film
+   rather than a slide in an app. */
+@keyframes view-in {
+  from {
+    opacity: 0;
+    transform: scale(1.012);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @layer utilities {
+  .view-enter {
+    animation: view-in 900ms var(--ease-lux) both;
+  }
+
   .scroll-thin {
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.18) transparent;

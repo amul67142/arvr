@@ -9,6 +9,27 @@ import * as THREE from 'three'
 export const SELECTABLE_PREFIXES = ['tower_', 'building_', 'block_']
 
 const NOOP_RAYCAST = () => {}
+
+/**
+ * Floors inside a building: any descendant named "<anything>_Floor_NN" or
+ * "Floor_NN". A floor claims its own subtree, so a floor's slab and glazing
+ * are picked together as one floor.
+ */
+const FLOOR_PATTERN = /(?:^|_)Floor_(\d+)$/i
+
+function detectFloors(building) {
+  const floors = []
+  building.traverse((child) => {
+    if (child === building) return
+    const match = FLOOR_PATTERN.exec(child.name ?? '')
+    if (!match) return
+    for (let parent = child.parent; parent && parent !== building; parent = parent.parent) {
+      if (FLOOR_PATTERN.test(parent.name ?? '')) return
+    }
+    floors.push({ id: child.uuid, number: Number(match[1]), name: child.name, object: child })
+  })
+  return floors.sort((a, b) => a.number - b.number)
+}
 const MAX_TREE_NODES = 6000
 
 export function isSelectableName(name) {
@@ -64,7 +85,7 @@ export function detectSelectableObjects(root) {
     }
 
     claimed.add(child)
-    found.push({ id: child.uuid, name: child.name, object: child })
+    found.push({ id: child.uuid, name: child.name, object: child, floors: detectFloors(child) })
   })
 
   found.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
@@ -94,8 +115,25 @@ export function setInteractiveSubtree(root, selectables) {
         object.raycast = object.userData.__originalRaycast
       }
       object.userData.__owner = entry
+      object.userData.__floor = null
     })
+
+    // Floors are already hit-testable as part of their building; tag them so a
+    // hit can resolve to the floor once the building is selected.
+    for (const floor of entry.floors ?? []) {
+      floor.object.traverse((object) => {
+        if (object.isMesh) object.userData.__floor = floor
+      })
+    }
   })
+}
+
+/** Resolve a raycast hit to the floor that owns it, if any. */
+export function findFloorEntry(object) {
+  for (let node = object; node; node = node.parent) {
+    if (node.userData?.__floor) return node.userData.__floor
+  }
+  return null
 }
 
 /** Resolve a raycast hit back to the building entry that owns it. */

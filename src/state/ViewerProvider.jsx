@@ -11,8 +11,11 @@ import { ViewerContext } from './viewerStore'
 
 const initialState = {
   model: null,
-  selection: null, // { level, id, name, object }
-  focusRequest: null, // { object | null, nonce }
+  // { level: 'tower' | 'floor', id, name, object, floor?: { id, number, name, object } }
+  // `id` is always the building's, so everything keyed on the selected
+  // building keeps working when the selection narrows to one of its floors.
+  selection: null,
+  focusRequest: null, // { object | null, nonce, padding? }
   timeOfDay: 'day',
   inspectorOpen: false,
   nonce: 0,
@@ -34,6 +37,25 @@ function reducer(state, action) {
           object: action.entry.object,
         },
         focusRequest: { object: action.entry.object, nonce },
+        nonce,
+      }
+    }
+
+    case 'SELECT_FLOOR': {
+      const nonce = state.nonce + 1
+      const { entry, floor } = action
+      return {
+        ...state,
+        selection: {
+          level: 'floor',
+          id: entry.id,
+          name: entry.name,
+          object: entry.object,
+          floor: { id: floor.id, number: floor.number, name: floor.name, object: floor.object },
+        },
+        // Framed looser than a building, so the neighbouring floors stay in
+        // view and the buyer can read where on the tower they are.
+        focusRequest: { object: floor.object, nonce, padding: 2.4 },
         nonce,
       }
     }
@@ -74,9 +96,16 @@ export function ViewerProvider({ children }) {
   // never round-trip through React state.
   const controlsRef = useRef(null)
   const hoverLabelRef = useRef(null)
+  // Set by the model: highlight a floor while the buyer hovers its number in
+  // the panel, without a React render per hover.
+  const floorPreviewRef = useRef(null)
 
   const setModel = useCallback((model) => dispatch({ type: 'SET_MODEL', model }), [])
   const selectTower = useCallback((entry) => dispatch({ type: 'SELECT', entry }), [])
+  const selectFloor = useCallback(
+    (entry, floor) => dispatch({ type: 'SELECT_FLOOR', entry, floor }),
+    [],
+  )
   const clearSelection = useCallback(() => dispatch({ type: 'CLEAR_SELECTION' }), [])
   const focusObject = useCallback((object) => dispatch({ type: 'FOCUS', object }), [])
   const resetView = useCallback(() => dispatch({ type: 'RESET_VIEW' }), [])
@@ -94,8 +123,10 @@ export function ViewerProvider({ children }) {
       ...state,
       controlsRef,
       hoverLabelRef,
+      floorPreviewRef,
       setModel,
       selectTower,
+      selectFloor,
       clearSelection,
       focusObject,
       resetView,
@@ -106,6 +137,7 @@ export function ViewerProvider({ children }) {
       state,
       setModel,
       selectTower,
+      selectFloor,
       clearSelection,
       focusObject,
       resetView,
