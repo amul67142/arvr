@@ -26,6 +26,7 @@ import { Document, NodeIO } from '@gltf-transform/core'
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions'
 import {
   dedup,
+  dequantize,
   instance,
   mergeDocuments,
   meshopt,
@@ -35,7 +36,7 @@ import {
   unpartition,
   weld,
 } from '@gltf-transform/functions'
-import { MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer'
+import { MeshoptDecoder, MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer'
 import sharp from 'sharp'
 import * as THREE from 'three'
 
@@ -43,7 +44,7 @@ import { CACHE } from '../fetch-polyhaven.mjs'
 
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({
   'meshopt.encoder': MeshoptEncoder,
-  'meshopt.decoder': MeshoptEncoder,
+  'meshopt.decoder': MeshoptDecoder,
 })
 
 const DEG = Math.PI / 180
@@ -57,6 +58,7 @@ export function yaw(degrees) {
 export async function createScene(name) {
   await MeshoptSimplifier.ready
   await MeshoptEncoder.ready
+  await MeshoptDecoder.ready
 
   const doc = new Document()
   doc.createBuffer('main')
@@ -102,6 +104,34 @@ export async function createScene(name) {
     }
     if (spec.doubleSided) material.setDoubleSided(true)
     if (spec.emissive) material.setEmissiveFactor(spec.emissive)
+
+    // A texture made in code (e.g. a perforated screen pattern) as PNG bytes.
+    // With `alphaCutoff`, its transparent pixels become real holes.
+    if (spec.image) {
+      const texture = doc
+        .createTexture(`${key}/image`)
+        .setImage(spec.image)
+        .setMimeType(spec.imageType ?? 'image/png')
+      material.setBaseColorTexture(texture)
+      // `glow` reuses the colour image as an emissive map: lit windows.
+      if (spec.glow) material.setEmissiveTexture(texture).setEmissiveFactor(spec.glow)
+      // MASK cuts hard holes but closes them at distance, once mipmaps average
+      // the pattern past the cutoff. BLEND fades to the pattern's mean
+      // opacity instead — right for fine perforations seen from far away.
+      if (spec.alphaBlend) {
+        material.setAlphaMode('BLEND').setDoubleSided(true)
+      } else if (spec.alphaCutoff !== undefined) {
+        material.setAlphaMode('MASK').setAlphaCutoff(spec.alphaCutoff).setDoubleSided(true)
+      }
+    }
+
+    if (spec.normalImage) {
+      const normal = doc
+        .createTexture(`${key}/normal`)
+        .setImage(spec.normalImage)
+        .setMimeType(spec.normalImageType ?? 'image/jpeg')
+      material.setNormalTexture(normal).setNormalScale(spec.normalScale ?? 1)
+    }
 
     if (spec.texture) {
       // `maps` picks which parts of a texture set to use — e.g. only its
@@ -375,16 +405,100 @@ export async function createScene(name) {
     return holder
   }
 
+  // ------------------------------------------------------------ pieces --
+
+  const sources = new Map()
+
+  /**
+   * Lift part of another model — a whole furnished room, say — out as a
+   * reusable piece. `box` ([min, max], in the source's world metres) selects
+   * every mesh whose centre falls inside it; `origin` becomes the piece's
+   * (0, 0, 0), so place it at the point it should stand on. Names matching
+   * `exclude` (walls, floors…) are left behind. Returns place(pos, yawDeg).
+   */
+  async function piece(name, path, { box, origin, exclude = /^(Wall|Floor|Ceiling|Curtain|Slab)_/ }) {
+    let source = sources.get(path)
+    if (!source) {
+      const loaded = await io.read(path)
+      await loaded.transform(dequantize())
+      source = { doc: loaded, nodes: [] }
+      const sourceScene = loaded.getRoot().getDefaultScene() ?? loaded.getRoot().listScenes()[0]
+      sourceScene.traverse((node) => node.getMesh() && source.nodes.push(node))
+      const map = mergeDocuments(doc, loaded)
+      source.map = map
+      source.scene = map.get(sourceScene)
+      sources.set(path, source)
+    }
+
+    const [lo, hi] = box
+    const chosen = source.nodes.filter((node) => {
+      if (exclude.test(node.getName())) return false
+      const m = node.getWorldMatrix()
+      const min = [Infinity, Infinity, Infinity]
+      const max = [-Infinity, -Infinity, -Infinity]
+      for (const prim of node.getMesh().listPrimitives()) {
+        const pos = prim.getAttribute('POSITION')
+        const a = pos.getMin([])
+        const b = pos.getMax([])
+        for (let c = 0; c < 8; c++) {
+          const v = [c & 1 ? b[0] : a[0], c & 2 ? b[1] : a[1], c & 4 ? b[2] : a[2]]
+          for (let r = 0; r < 3; r++) {
+            const w = m[r] * v[0] + m[r + 4] * v[1] + m[r + 8] * v[2] + m[r + 12]
+            min[r] = Math.min(min[r], w)
+            max[r] = Math.max(max[r], w)
+          }
+        }
+      }
+      return [0, 1, 2].every((k) => {
+        const centre = (min[k] + max[k]) / 2
+        return centre >= lo[k] && centre <= hi[k]
+      })
+    })
+
+    // One template, shared by every placement (instanced on write).
+    const template = chosen.map((node) => {
+      const m = [...node.getWorldMatrix()]
+      m[12] -= origin[0]
+      m[13] -= origin[1]
+      m[14] -= origin[2]
+      return doc.createNode(node.getName()).setMesh(source.map.get(node).getMesh()).setMatrix(m)
+    })
+
+    let count = 0
+    return (position = [0, 0, 0], rotation = 0) => {
+      count += 1
+      return group(`${name}_${count}`, template.map(cloneTree), position, yaw(rotation))
+    }
+  }
+
+  /** Drop the merged source scenes; only the meshes pieces use survive prune. */
+  function releaseSources() {
+    for (const { scene: merged } of sources.values()) {
+      // Dispose the copied source nodes too; pieces reference their meshes,
+      // not the nodes, and orphaned nodes would otherwise be written out.
+      const nodes = []
+      merged.traverse((node) => nodes.push(node))
+      merged.dispose()
+      for (const node of nodes) node.dispose()
+    }
+    sources.clear()
+  }
+
   // ------------------------------------------------------------- write --
 
   function add(...nodes) {
     for (const node of nodes) if (node) scene.addChild(node)
   }
 
-  async function write(outPath, { textureSize = 1024 } = {}) {
+  /**
+   * `instancing: false` keeps every node separate — needed when repeated parts
+   * must stay individually addressable, like the floors of a tower.
+   */
+  async function write(outPath, { textureSize = 1024, instancing = true } = {}) {
+    releaseSources()
     await doc.transform(
       dedup(),
-      instance({ min: 2 }),
+      ...(instancing ? [instance({ min: 2 })] : []),
       prune({ keepExtras: true }),
       textureCompress({
         encoder: sharp,
@@ -412,6 +526,7 @@ export async function createScene(name) {
     group,
     empty,
     model,
+    piece,
     add,
     write,
     stats,

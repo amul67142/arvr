@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
 
 import { getTowerMetadata, unitTypes } from '../data/towerMetadata'
 import { createAssetForType, describeAsset, fetchDemoFile } from './assetSources'
+import { DEMO_PROJECTS } from './demoProjects'
 import { ExperienceContext, MODES } from './experienceStore'
 import { clearProject, loadProject, saveProject } from './persistence'
 
@@ -31,8 +32,10 @@ const emptyState = {
   mode: MODES.EDITOR,
 }
 
-function initialise() {
-  const saved = loadProject()
+function initialise(embed) {
+  // An embed is a fresh, read-only visit: it never reads the editor's saved
+  // project, and (see below) never writes one.
+  const saved = embed ? null : loadProject()
   if (!saved) return emptyState
 
   return {
@@ -79,20 +82,6 @@ function nameFromFile(fileName) {
   return stem.replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
-/**
- * The bundled demo: every view type, wired end to end. Files are served from
- * public/demo, so unlike uploads they can be fetched again after a reload.
- */
-const DEMO_PROJECT = {
-  project: { id: 'aravali-vista-demo', name: 'Aravali Vista', startViewId: 'masterplan' },
-  views: [
-    { id: 'masterplan', name: 'Masterplan', type: '3d', src: '/demo/masterplan.glb' },
-    { id: 'tower-d-exterior', name: 'Tower D Exterior', type: 'image', src: '/demo/tower-d-render.png' },
-    { id: '3bhk-walkthrough', name: '3BHK Walkthrough', type: 'walkthrough', src: '/demo/unit-3bhk.glb' },
-    { id: 'amenities-walkthrough', name: 'Amenities Walkthrough', type: 'walkthrough', src: '/demo/amenities.glb' },
-  ],
-}
-
 function omit(object, key) {
   if (!(key in object)) return object
   const next = { ...object }
@@ -122,6 +111,7 @@ function reducer(state, action) {
         project: action.project,
         views: action.views,
         assets: action.assets,
+        unitTypeTargets: action.unitTypeTargets ?? {},
         currentViewId: action.project.startViewId,
         mode: MODES.EDITOR,
       }
@@ -256,8 +246,13 @@ function reducer(state, action) {
   }
 }
 
-export function ExperienceProvider({ children }) {
-  const [state, dispatch] = useReducer(reducer, undefined, initialise)
+/**
+ * `embed` is the embed request read from the URL (see experience/embed.js), or
+ * null in the normal app. It is passed down so views can drop chrome that only
+ * makes sense inside the editor.
+ */
+export function ExperienceProvider({ children, embed = null }) {
+  const [state, dispatch] = useReducer(reducer, embed, initialise)
 
   /**
    * The single owner of every object URL in the app. Keyed by view id so
@@ -283,15 +278,17 @@ export function ExperienceProvider({ children }) {
   useEffect(() => releaseAll, [releaseAll])
 
   // Metadata only. Session assets are in a slice this never touches.
+  // An embed saves nothing: a tour on a customer's website must not overwrite
+  // the project its owner is editing in another tab.
   useEffect(() => {
-    if (!state.project) return
+    if (!state.project || embed) return
     saveProject({
       project: state.project,
       views: state.views,
       towerTargets: state.towerTargets,
       unitTypeTargets: state.unitTypeTargets,
     })
-  }, [state.project, state.views, state.towerTargets, state.unitTypeTargets])
+  }, [embed, state.project, state.views, state.towerTargets, state.unitTypeTargets])
 
   // -- project ------------------------------------------------------------ --
 
@@ -300,8 +297,12 @@ export function ExperienceProvider({ children }) {
     (file, companions = []) => {
       releaseAll()
 
-      const view = { id: 'masterplan', name: 'Masterplan', type: '3d', asset: null }
-      const { asset, urls } = createAssetForType('3d', file, companions)
+      // An orbit video starts the project as a turnable rotation instead.
+      const isVideo = /\.(mp4|mov|webm)$/i.test(file.name)
+      const view = isVideo
+        ? { id: 'orbit', name: 'Tower Orbit', type: 'rotation', asset: null }
+        : { id: 'masterplan', name: 'Masterplan', type: '3d', asset: null }
+      const { asset, urls } = createAssetForType(view.type, file, companions)
       urlsByView.current.set(view.id, urls)
 
       dispatch({
@@ -354,12 +355,14 @@ export function ExperienceProvider({ children }) {
   }, [releaseView, state.assets, state.views])
 
   /** Build the demo project from the app's bundled files. */
-  const loadDemoProject = useCallback(async () => {
-    const files = await Promise.all(DEMO_PROJECT.views.map((view) => fetchDemoFile(view.src)))
+  const loadDemoProject = useCallback(async (demoId = 'aravali-vista') => {
+    const demo = DEMO_PROJECTS[demoId]
+    if (!demo) throw new Error(`Unknown demo "${demoId}"`)
+    const files = await Promise.all(demo.views.map((view) => fetchDemoFile(view.src)))
     releaseAll()
 
     const assets = {}
-    const views = DEMO_PROJECT.views.map((view, index) => {
+    const views = demo.views.map((view, index) => {
       const { asset, urls } = createAssetForType(view.type, files[index])
       asset.demoSrc = view.src
       urlsByView.current.set(view.id, urls)
@@ -367,7 +370,13 @@ export function ExperienceProvider({ children }) {
       return { id: view.id, name: view.name, type: view.type, asset: describeAsset(asset) }
     })
 
-    dispatch({ type: 'LOAD_PROJECT', project: DEMO_PROJECT.project, views, assets })
+    dispatch({
+      type: 'LOAD_PROJECT',
+      project: demo.project,
+      views,
+      assets,
+      unitTypeTargets: demo.unitTypeTargets,
+    })
   }, [releaseAll])
 
   // -- views -------------------------------------------------------------- --
@@ -401,6 +410,24 @@ export function ExperienceProvider({ children }) {
       dispatch({ type: 'SET_ASSET', viewId, asset })
     },
     [releaseView, state.views],
+  )
+
+  /**
+   * Work done on an uploaded view in the browser — an orbit video cut into
+   * frames and made clickable — kept with its asset for this session. The
+   * frames are blob URLs the view now owns and releases with it.
+   */
+  const prepareView = useCallback(
+    (viewId, prepared) => {
+      const asset = state.assets[viewId]
+      if (!asset) return
+      const previous = asset.prepared?.frames ?? []
+      previous.filter((url) => !prepared.frames.includes(url)).forEach((url) => URL.revokeObjectURL(url))
+      const owned = (urlsByView.current.get(viewId) ?? []).filter((url) => !previous.includes(url))
+      urlsByView.current.set(viewId, [...owned, ...prepared.frames])
+      dispatch({ type: 'SET_ASSET', viewId, asset: { ...asset, prepared } })
+    },
+    [state.assets],
   )
 
   const renameView = useCallback((id, name) => {
@@ -490,6 +517,7 @@ export function ExperienceProvider({ children }) {
   const value = useMemo(
     () => ({
       ...state,
+      embed,
       currentView,
       canGoBack: state.history.length > 0,
       createProject,
@@ -497,6 +525,7 @@ export function ExperienceProvider({ children }) {
       resetProject,
       addView,
       attachAsset,
+      prepareView,
       renameView,
       removeView,
       setStartView,
@@ -513,12 +542,14 @@ export function ExperienceProvider({ children }) {
     }),
     [
       state,
+      embed,
       currentView,
       createProject,
       renameProject,
       resetProject,
       addView,
       attachAsset,
+      prepareView,
       renameView,
       removeView,
       setStartView,

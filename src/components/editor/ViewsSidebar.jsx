@@ -6,6 +6,7 @@ import { MODES, useExperience } from '../../experience/experienceStore'
 import { getViewType, isAcceptedFile, viewTypeLabel } from '../../experience/viewTypes'
 import { formatBytes } from '../../utils/modelUtils'
 import { AlertIcon, ArrowIcon, CloseIcon, CubeIcon } from '../common/Icons'
+import EmbedDialog from './EmbedDialog'
 
 const pad = (index) => String(index + 1).padStart(2, '0')
 
@@ -325,6 +326,7 @@ export default function ViewsSidebar({ onAddView }) {
     resetProject,
   } = useExperience()
   const [confirmReset, setConfirmReset] = useState(false)
+  const [embedOpen, setEmbedOpen] = useState(false)
 
   const missingCount = views.filter((view) => !assets[view.id]).length
 
@@ -410,6 +412,14 @@ export default function ViewsSidebar({ onAddView }) {
           <ArrowIcon size={15} />
         </button>
 
+        <button
+          type="button"
+          onClick={() => setEmbedOpen(true)}
+          className="label mt-3 w-full border border-white/20 py-3.5 text-white/60 transition-colors duration-500 hover:border-white/45 hover:text-white"
+        >
+          Embed on a Website
+        </button>
+
         <div className="mt-4 text-center">
           {confirmReset ? (
             <span className="flex items-center justify-center gap-5">
@@ -440,6 +450,8 @@ export default function ViewsSidebar({ onAddView }) {
           )}
         </div>
       </footer>
+
+      {embedOpen ? <EmbedDialog onClose={() => setEmbedOpen(false)} /> : null}
     </aside>
   )
 }

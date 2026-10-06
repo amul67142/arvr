@@ -25,6 +25,48 @@ export const project = {
 }
 
 export const towerMetadata = {
+  // Third demo: a real tower filmed by drone (Pexels, free licence). The name,
+  // floors and prices are invented for the demo; the building is not for sale.
+  Tower_Horizon: {
+    displayName: 'Horizon One',
+    tagline: 'Glass residences above the expressway',
+    location: 'Demo footage — not a real listing',
+    floors: 'G + 47 Floors',
+    configuration: '3 & 4 BHK',
+    price: 'Starting ₹5.10 Cr',
+    facing: 'All-round views',
+    possession: 'Possession Dec 2029',
+    targetViewId: 'unit-360',
+
+    rate: 26000, // ₹ per sq ft of super area, before floor rise
+    units: [
+      { code: 'A', type: '3BHK', facing: 'East · Expressway' },
+      { code: 'B', type: '3BHK', facing: 'North · Skyline' },
+      { code: 'C', type: '4BHK', facing: 'West · Sunset' },
+      { code: 'D', type: '4BHK', facing: 'South · Greens' },
+    ],
+  },
+  // Second demo: a single tower on its own plot (public/demo/skyline.glb).
+  // Built from a stock 3ds Max model; the name and figures are illustrative.
+  Tower_Skyline: {
+    displayName: 'Skyline Heights',
+    tagline: 'Podium + 35 residential floors',
+    location: 'Sector 58 · Golf Course Extension Road',
+    floors: 'Podium + 35 Floors',
+    configuration: '3 & 4 BHK',
+    price: 'Starting ₹4.60 Cr',
+    facing: 'South · Boulevard frontage',
+    possession: 'Possession Sep 2029',
+    targetViewId: null,
+
+    rate: 23500, // ₹ per sq ft of super area, before floor rise
+    units: [
+      { code: 'A', type: '3BHK', facing: 'South · Boulevard' },
+      { code: 'B', type: '3BHK', facing: 'East · Avenue' },
+      { code: 'C', type: '4BHK', facing: 'North · Garden' },
+      { code: 'D', type: '4BHK', facing: 'West · Skyline' },
+    ],
+  },
   Tower_A: {
     displayName: 'Tower A',
     tagline: 'Golf Course Facing Residences',

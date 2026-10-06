@@ -8,6 +8,9 @@ import { useViewer } from '../../state/viewerStore'
 import { formatBytes } from '../../utils/modelUtils'
 import ErrorState from '../common/ErrorState'
 import { UploadIcon } from '../common/Icons'
+import PanoramaView from '../panorama/PanoramaView'
+import RotationView from '../rotation/RotationView'
+import ShowcaseView from '../showcase/ShowcaseView'
 import ProjectViewer from '../viewer/ProjectViewer'
 import WalkthroughView from '../walkthrough/WalkthroughView'
 import BackNavigation from './BackNavigation'
@@ -94,6 +97,7 @@ export default function ExperienceViewer() {
   const isEditor = mode === MODES.EDITOR
 
   const [visited3d, setVisited3d] = useState([])
+  const [visitedRotation, setVisitedRotation] = useState([])
   const [failedAssetId, setFailedAssetId] = useState(null)
   const inputRef = useRef(null)
 
@@ -106,6 +110,16 @@ export default function ExperienceViewer() {
     !visited3d.includes(currentView.id)
   ) {
     setVisited3d([...visited3d, currentView.id])
+  }
+
+  // Rotation views are kept alive too: Back from a walkthrough lands on the
+  // same stop, floor and home the buyer left.
+  if (
+    currentView?.type === 'rotation' &&
+    currentAsset &&
+    !visitedRotation.includes(currentView.id)
+  ) {
+    setVisitedRotation([...visitedRotation, currentView.id])
   }
 
   // A cursor left as a pointer by a hovered tower must not follow the buyer
@@ -144,6 +158,11 @@ export default function ExperienceViewer() {
   const current3dFailed = currentView?.type === '3d' && currentFailed
   const showImage = currentView?.type === 'image' && currentAsset
   const showWalkthrough = currentView?.type === 'walkthrough' && currentAsset && !currentFailed
+  const liveRotation = visitedRotation
+    .map((id) => views.find((view) => view.id === id))
+    .filter((view) => view?.type === 'rotation' && assets[view.id])
+  const showPanorama = currentView?.type === 'panorama' && currentAsset
+  const showShowcase = currentView?.type === 'showcase' && currentAsset
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-neutral-950">
@@ -191,6 +210,38 @@ export default function ExperienceViewer() {
             source={currentAsset}
             onError={() => setFailedAssetId(currentAsset.id)}
           />
+        </div>
+      ) : null}
+
+      {liveRotation.map((view) => {
+        const asset = assets[view.id]
+        const active = view.id === currentView?.id
+        return (
+          <div
+            key={`${view.id}:${asset.id}`}
+            aria-hidden={!active}
+            className={`absolute inset-0 transition-[opacity,visibility] duration-700 ${
+              active ? 'visible opacity-100' : 'pointer-events-none invisible opacity-0'
+            }`}
+          >
+            <RotationView asset={asset} active={active} />
+          </div>
+        )
+      })}
+
+      {showShowcase ? (
+        <div key={`${currentView.id}:${currentAsset.id}`} className="view-enter absolute inset-0">
+          <ShowcaseView asset={currentAsset} />
+        </div>
+      ) : null}
+
+      {showPanorama ? (
+        // Keyed on the visit too: each unit's tour starts in its first room.
+        <div
+          key={`${currentView.id}:${currentAsset.id}:${currentParams?.title ?? ''}`}
+          className="view-enter absolute inset-0"
+        >
+          <PanoramaView asset={currentAsset} />
         </div>
       ) : null}
 

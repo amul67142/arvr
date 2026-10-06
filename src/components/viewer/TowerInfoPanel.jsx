@@ -12,7 +12,7 @@ const STATUS_STYLE = {
 }
 
 /** Every floor of the building as a grid, top floor first — it reads like the tower. */
-function FloorPicker({ floors, onPick, onPreview }) {
+export function FloorPicker({ floors, onPick, onPreview, hint = 'Or click a floor directly on the tower.' }) {
   const ordered = [...floors].reverse()
   return (
     <div className="mt-10 border-t border-white/10 pt-8">
@@ -34,15 +34,13 @@ function FloorPicker({ floors, onPick, onPreview }) {
           </button>
         ))}
       </div>
-      <p className="mt-4 text-[11px] leading-relaxed text-white/30">
-        Or click a floor directly on the tower.
-      </p>
+      {hint ? <p className="mt-4 text-[11px] leading-relaxed text-white/30">{hint}</p> : null}
     </div>
   )
 }
 
 /** The units on one floor, each with a way inside. */
-function FloorUnits({ towerName, towerLabel, floor, onWalk }) {
+export function FloorUnits({ towerName, towerLabel, floor, onWalk }) {
   const { resolveUnitTypeTarget, views, mode } = useExperience()
   const units = getFloorUnits(towerName, floor.number)
 
@@ -205,13 +203,22 @@ export default function TowerInfoPanel() {
                 />
               </>
             ) : meta.isPlaceholder ? (
-              <p className="text-sm leading-relaxed text-white/45">
-                No sales information is mapped to this object yet. Name it
-                <span className="mx-1 text-white/70">Tower_</span>,
-                <span className="mx-1 text-white/70">Building_</span> or
-                <span className="mx-1 text-white/70">Block_</span>
-                in your 3D file to attach details.
-              </p>
+              <>
+                <p className="text-sm leading-relaxed text-white/45">
+                  No sales information is mapped to this object yet. Name it
+                  <span className="mx-1 text-white/70">Tower_</span>,
+                  <span className="mx-1 text-white/70">Building_</span> or
+                  <span className="mx-1 text-white/70">Block_</span>
+                  in your 3D file to attach details.
+                </p>
+                {floors.length > 0 && entry ? (
+                  <FloorPicker
+                    floors={floors}
+                    onPick={(picked) => selectFloor(entry, picked)}
+                    onPreview={preview}
+                  />
+                ) : null}
+              </>
             ) : (
               <>
                 <dl className="space-y-7">

@@ -36,9 +36,42 @@ export const VIEW_TYPES = {
     available: true,
   },
 
+  // Real footage or renders turned round by dragging — the way Panom works.
+  // A video is split into frames in the browser; a .json manifest (the demo)
+  // lists prepared frames plus traced tower outlines.
+  rotation: {
+    id: 'rotation',
+    label: '360° Rotation',
+    hint: 'Drone or render orbit video',
+    accept: '.mp4,.webm,.mov,.json,video/*',
+    extensions: ['mp4', 'webm', 'mov', 'json'],
+    multiple: false,
+    available: true,
+  },
+  // Equirectangular 360° photos or renders; a .json manifest lists rooms.
+  panorama: {
+    id: 'panorama',
+    label: '360° Panorama',
+    hint: 'Equirectangular photo or render',
+    accept: '.jpg,.jpeg,.png,.webp,.json,image/*',
+    extensions: ['jpg', 'jpeg', 'png', 'webp', 'json'],
+    multiple: false,
+    available: true,
+  },
+
+  // Renders with a clickable layer traced on: building, floors, every flat,
+  // amenity pins, and the inventory beside it. A .json manifest describes it.
+  showcase: {
+    id: 'showcase',
+    label: 'Interactive Render',
+    hint: 'Renders with clickable flats',
+    accept: '.json,application/json',
+    extensions: ['json'],
+    multiple: false,
+    available: true,
+  },
+
   // Declared, not implemented.
-  rotation: { id: 'rotation', label: '360° Rotation', available: false },
-  panorama: { id: 'panorama', label: 'Panorama', available: false },
   floorplan: { id: 'floorplan', label: 'Floorplan', available: false },
   video: { id: 'video', label: 'Video', available: false },
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import gsap from 'gsap'
 
 import { totalBytes } from '../../experience/assetSources'
+import { DEMO_PROJECTS } from '../../experience/demoProjects'
 import { formatBytes } from '../../utils/modelUtils'
 import { AlertIcon, ArrowIcon, CloseIcon, CubeIcon, UploadIcon } from '../common/Icons'
 
@@ -40,6 +41,8 @@ async function filesFromDrop(dataTransfer) {
   return collected.length > 0 ? collected : Array.from(dataTransfer.files ?? [])
 }
 
+const VIDEO_EXTENSIONS = ['mp4', 'mov', 'webm']
+
 export default function ModelUploader({ onSelect, onLoadDemo, notice }) {
   const rootRef = useRef(null)
   const inputRef = useRef(null)
@@ -48,7 +51,7 @@ export default function ModelUploader({ onSelect, onLoadDemo, notice }) {
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState(null)
   const [staged, setStaged] = useState(null)
-  const [demoState, setDemoState] = useState('idle') // idle | loading | failed
+  const [demoState, setDemoState] = useState({}) // per demo: loading | failed
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -69,15 +72,17 @@ export default function ModelUploader({ onSelect, onLoadDemo, notice }) {
     const list = Array.from(files ?? [])
     if (list.length === 0) return
 
+    // A 3D model, or — for a client who only has footage — an orbit video.
     const model =
       list.find((file) => extensionOf(file) === 'glb') ??
-      list.find((file) => extensionOf(file) === 'gltf')
+      list.find((file) => extensionOf(file) === 'gltf') ??
+      list.find((file) => VIDEO_EXTENSIONS.includes(extensionOf(file)))
 
     if (!model) {
       setStaged(null)
       setError({
         title: 'Unsupported file format.',
-        body: 'Please upload a GLB or GLTF model.',
+        body: 'Please upload a GLB or GLTF model, or an orbit video (MP4, MOV, WebM).',
       })
       return
     }
@@ -179,7 +184,7 @@ export default function ModelUploader({ onSelect, onLoadDemo, notice }) {
           </span>
 
           <div className="space-y-2">
-            <p className="label-lg text-white/70">Drag &amp; Drop GLB / GLTF</p>
+            <p className="label-lg text-white/70">Drag &amp; Drop GLB / GLTF or an orbit video</p>
             <p className="text-xs tracking-widest text-white/25">or</p>
           </div>
 
@@ -188,14 +193,14 @@ export default function ModelUploader({ onSelect, onLoadDemo, notice }) {
             onClick={() => inputRef.current?.click()}
             className="label border border-white/20 bg-white px-7 py-3.5 text-neutral-950 transition-colors duration-500 hover:bg-white/85"
           >
-            Choose 3D Model
+            Choose Model or Video
           </button>
 
           <input
             ref={inputRef}
             type="file"
             multiple
-            accept=".glb,.gltf,model/gltf-binary,model/gltf+json"
+            accept=".glb,.gltf,model/gltf-binary,model/gltf+json,.mp4,.mov,.webm,video/*"
             className="hidden"
             onChange={(event) => {
               stageFiles(event.target.files)
@@ -204,37 +209,45 @@ export default function ModelUploader({ onSelect, onLoadDemo, notice }) {
           />
         </div>
 
-        {onLoadDemo ? (
-          <div data-reveal className="mt-5 flex flex-wrap items-center justify-between gap-4 border border-white/10 bg-white/[0.02] px-6 py-5">
-            <div className="min-w-0">
-              <p className="label text-white/45">Or explore the demo</p>
-              <p className="mt-2 text-sm text-white/75">
-                Aravali Vista — masterplan, 3BHK walkthrough and amenities
-              </p>
-              {demoState === 'failed' ? (
-                <p className="mt-2 text-xs text-red-300/80">
-                  The demo files could not be loaded. Try again.
-                </p>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              disabled={demoState === 'loading'}
-              onClick={async () => {
-                setDemoState('loading')
-                try {
-                  await onLoadDemo()
-                } catch {
-                  setDemoState('failed')
-                }
-              }}
-              className="label flex items-center gap-3 border border-white/25 px-6 py-3.5 text-white/85 transition-colors duration-500 hover:bg-white hover:text-neutral-950 disabled:cursor-wait disabled:opacity-60"
-            >
-              {demoState === 'loading' ? 'Loading Demo…' : 'Load Demo Project'}
-              <ArrowIcon size={15} />
-            </button>
-          </div>
-        ) : null}
+        {onLoadDemo
+          ? Object.entries(DEMO_PROJECTS).map(([id, demo], index) => (
+              <div
+                key={id}
+                data-reveal
+                className="mt-5 flex flex-wrap items-center justify-between gap-4 border border-white/10 bg-white/[0.02] px-6 py-5"
+              >
+                <div className="min-w-0">
+                  <p className="label text-white/45">
+                    {index === 0 ? 'Or explore a demo' : 'Another demo'}
+                  </p>
+                  <p className="mt-2 text-sm text-white/75">
+                    {demo.title} — {demo.summary}
+                  </p>
+                  {demoState[id] === 'failed' ? (
+                    <p className="mt-2 text-xs text-red-300/80">
+                      The demo files could not be loaded. Try again.
+                    </p>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  disabled={Object.values(demoState).includes('loading')}
+                  onClick={async () => {
+                    setDemoState((state) => ({ ...state, [id]: 'loading' }))
+                    try {
+                      await onLoadDemo(id)
+                    } catch {
+                      setDemoState((state) => ({ ...state, [id]: 'failed' }))
+                    }
+                  }}
+                  className="label flex items-center gap-3 border border-white/25 px-6 py-3.5 text-white/85 transition-colors duration-500 hover:bg-white hover:text-neutral-950 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {demoState[id] === 'loading' ? 'Loading Demo…' : 'Load Demo'}
+                  <ArrowIcon size={15} />
+                </button>
+              </div>
+            ))
+          : null}
 
         {error ? (
           <div className="mt-5 flex items-start gap-3 border border-red-400/25 bg-red-400/[0.06] px-5 py-4">
@@ -315,6 +328,8 @@ export default function ModelUploader({ onSelect, onLoadDemo, notice }) {
               .glb <span className="text-white/25">— recommended, single file</span>
               <br />
               .gltf <span className="text-white/25">— include linked resources</span>
+              <br />
+              .mp4 / .mov <span className="text-white/25">— one full orbit of the building</span>
             </p>
           </div>
           <div>

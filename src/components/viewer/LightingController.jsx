@@ -8,7 +8,12 @@ import * as THREE from 'three'
 import gsap from 'gsap'
 
 import { useViewer } from '../../state/viewerStore'
-import { TIME_OF_DAY, applyPageGradient, bakeEnvironments } from '../../utils/envUtils'
+import {
+  TIME_OF_DAY,
+  applyPageGradient,
+  bakeEnvironments,
+  loadSkyEnvironment,
+} from '../../utils/envUtils'
 
 const TRANSITION_DURATION = 1.6
 
@@ -54,8 +59,23 @@ export default function LightingController({ shadowsEnabled }) {
     scene.environment = baked.textures[initialMode.current]
     scene.environmentIntensity = TIME_OF_DAY[initialMode.current].envIntensity
 
+    // Upgrade day reflections to the real sky once it has loaded.
+    let sky = null
+    let cancelled = false
+    loadSkyEnvironment(renderer)
+      .then((loaded) => {
+        if (cancelled) return loaded.dispose()
+        sky = loaded
+        const previous = baked.textures.day
+        baked.textures.day = loaded.texture
+        if (scene.environment === previous) scene.environment = loaded.texture
+      })
+      .catch(() => {})
+
     return () => {
+      cancelled = true
       scene.environment = null
+      sky?.dispose()
       baked.dispose()
       environments.current = null
     }

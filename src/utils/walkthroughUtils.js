@@ -38,6 +38,106 @@ function taggedAncestor(object, pattern) {
   return null
 }
 
+const GRID = 7
+const PROBE_HEIGHT = 1.5 // above beds and sofas, so those don't hide a clear view
+const DIRECTIONS = Array.from({ length: 8 }, (_, i) => (i / 8) * Math.PI * 2)
+
+/**
+ * Samples a grid over the room, keeps points that stand on its floor, and
+ * picks the one farthest from any wall or furniture. Faces the direction with
+ * the longest clear sightline, so the first view takes the room in.
+ */
+function findOpenView(room, walkables, colliders) {
+  const { minX, maxX, minZ, maxZ } = room.bounds
+  const ray = new THREE.Raycaster()
+  const origin = new THREE.Vector3()
+  const dir = new THREE.Vector3()
+  const down = new THREE.Vector3(0, -1, 0)
+  let best = null
+
+  for (let i = 0; i < GRID; i++) {
+    for (let j = 0; j < GRID; j++) {
+      const x = minX + ((i + 0.5) / GRID) * (maxX - minX)
+      const z = minZ + ((j + 0.5) / GRID) * (maxZ - minZ)
+
+      // Must be on this room's floor with nothing standing on it. The probe starts
+      // above the room: a ray born inside a wardrobe would not see its faces.
+      origin.set(x, room.floorY + 4, z)
+      ray.set(origin, down)
+      ray.far = 5
+      const floorHit = ray.intersectObjects(walkables, false)[0]
+      if (!floorHit || floorHit.object.userData.__room !== room) continue
+      const blocked = ray.intersectObjects(colliders, false)[0]
+      if (blocked && blocked.distance < floorHit.distance) continue
+
+      origin.set(x, room.floorY + PROBE_HEIGHT, z)
+      let nearest = Infinity
+      let longest = { distance: -1, angle: 0 }
+      for (const angle of DIRECTIONS) {
+        dir.set(-Math.sin(angle), 0, -Math.cos(angle))
+        ray.set(origin, dir)
+        ray.far = 20
+        const hit = ray.intersectObjects(colliders, false)[0]
+        const distance = hit ? hit.distance : 20
+        nearest = Math.min(nearest, distance)
+        if (distance > longest.distance) longest = { distance, angle }
+      }
+      if (!best || nearest > best.nearest) best = { x, z, yaw: longest.angle, nearest }
+    }
+  }
+
+  if (best) return { x: best.x, z: best.z, yaw: best.yaw }
+  // Nothing sampled cleanly: the middle of the room, looking along it.
+  return { x: (minX + maxX) / 2, z: (minZ + maxZ) / 2, yaw: 0 }
+}
+
+/**
+ * Finds floor meshes by shape: flat (under 30 cm thick), bigger than a rug
+ * sample and smaller than a site ground plane, with tops near the lowest such
+ * surface. They become one walkable room; ground planes stop blocking.
+ */
+function autoFloor(colliders, walkables, rooms, bounds) {
+  const boxes = colliders.map((object) => ({ object, box: new THREE.Box3().setFromObject(object) }))
+  const flat = boxes.filter(({ box }) => {
+    const size = box.getSize(new THREE.Vector3())
+    return size.y < 0.3 && size.x * size.z > 1.5
+  })
+  const ground = new Set(flat.filter(({ box }) => {
+    const size = box.getSize(new THREE.Vector3())
+    return size.x * size.z > 300
+  }).map(({ object }) => object))
+  const floors = flat.filter(({ object }) => !ground.has(object))
+  if (floors.length === 0) return
+
+  const lowest = Math.min(...floors.map(({ box }) => box.max.y))
+  const chosen = floors.filter(({ box }) => box.max.y < lowest + 0.35)
+  const area = new THREE.Box3()
+  for (const { box } of chosen) area.union(box)
+
+  const room = {
+    id: 'Interior',
+    label: 'Interior',
+    order: 0,
+    area: null,
+    floorY: area.max.y,
+    bounds: { minX: area.min.x, maxX: area.max.x, minZ: area.min.z, maxZ: area.max.z },
+    view: null,
+    outdoor: false,
+  }
+  rooms.push(room)
+  bounds.union(area)
+
+  const moved = new Set([...chosen.map(({ object }) => object), ...ground])
+  for (const { object } of chosen) {
+    object.userData.__walkable = true
+    object.userData.__room = room
+    walkables.push(object)
+  }
+  for (let i = colliders.length - 1; i >= 0; i--) {
+    if (moved.has(colliders[i])) colliders.splice(i, 1)
+  }
+}
+
 export function scanWalkthrough(root) {
   root.updateMatrixWorld(true)
 
@@ -106,17 +206,16 @@ export function scanWalkthrough(root) {
     colliders.push(object)
   })
 
+  // A model that follows none of the naming (a raw CAD or 3ds Max export)
+  // still gets a walk: its lowest large flat surfaces become the floor.
+  if (walkables.length === 0) autoFloor(colliders, walkables, rooms, bounds)
+
   rooms.sort((a, b) => a.order - b.order)
 
-  // A room without an authored viewpoint gets one: a corner, looking across.
+  // A room without an authored viewpoint gets the most open spot on its
+  // floor, looking the longest way across — never inside a wardrobe.
   for (const room of rooms) {
-    if (room.view) continue
-    const { minX, maxX, minZ, maxZ } = room.bounds
-    const x = minX + (maxX - minX) * 0.85
-    const z = minZ + (maxZ - minZ) * 0.85
-    const cx = (minX + maxX) / 2
-    const cz = (minZ + maxZ) / 2
-    room.view = { x, z, yaw: Math.atan2(-(cx - x), -(cz - z)) }
+    if (!room.view) room.view = findOpenView(room, walkables, colliders)
   }
 
   if (!spawn && rooms[0]) {

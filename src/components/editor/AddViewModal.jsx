@@ -48,7 +48,35 @@ function WalkGlyph({ size = 26 }) {
   )
 }
 
-const TYPE_GLYPH = { '3d': CubeIcon, image: ImageGlyph, walkthrough: WalkGlyph }
+/** A building with an arrow circling it — turning round the project. */
+function RotationGlyph({ size = 26 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.25} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M8 15.5V5.5h4v10" />
+      <path d="M3.2 12.6c-1 .6-1.2 1.3-.4 2 1.6 1.5 7 2 10.8.8 3.4-1 3.6-2.6.8-3.6" />
+      <path d="m14.2 10.4 1.6 1.4-1.9 1" />
+    </svg>
+  )
+}
+
+/** A sphere with its equator — a 360° photo. */
+function PanoramaGlyph({ size = 26 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.25} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="10" cy="10" r="7" />
+      <ellipse cx="10" cy="10" rx="7" ry="2.6" />
+      <path d="M10 3c-2 2-2 12 0 14" />
+    </svg>
+  )
+}
+
+const TYPE_GLYPH = {
+  '3d': CubeIcon,
+  image: ImageGlyph,
+  walkthrough: WalkGlyph,
+  rotation: RotationGlyph,
+  panorama: PanoramaGlyph,
+}
 
 /** "tower_d-render.png" -> "Tower D Render" */
 function nameFromFile(fileName) {
