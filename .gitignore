@@ -28,3 +28,12 @@ samples/downloaded/
 
 # Raw downloads for the demo asset build (re-fetch with scripts/fetch-polyhaven.mjs)
 .cache/
+
+# Third-party 360 renders used for local testing only (not ours to publish)
+public/demo/sample-tour/
+
+# Synthetic studio delivery for pipeline tests (regenerate: node scripts/mock-studio.mjs)
+public/demo/mock/
+public/demo/unreal-tower/
+public/demo/unreal-orbit/
+public/demo/unreal-highrise/

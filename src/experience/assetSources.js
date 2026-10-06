@@ -107,6 +107,11 @@ export function pickMainFile(typeId, files, isAccepted) {
 export function createAssetForType(typeId, file, companions = []) {
   if (typeId === '3d' || typeId === 'walkthrough') return createModelSource(file, companions)
   if (typeId === 'image') return createImageSource(file)
+  if (typeId === 'rotation' || typeId === 'panorama' || typeId === 'showcase') {
+    const source = createImageSource(file)
+    source.asset.kind = typeId
+    return source
+  }
   throw new Error(`No asset builder for view type "${typeId}"`)
 }
 
@@ -132,4 +137,13 @@ export async function fetchDemoFile(src) {
   if (!response.ok) throw new Error(`${response.status} ${src}`)
   const blob = await response.blob()
   return new File([blob], src.split('/').pop(), { type: blob.type })
+}
+
+/**
+ * Where a manifest's relative paths resolve from: the demo folder it was
+ * served from. An uploaded manifest has no folder, so it can only use
+ * absolute URLs.
+ */
+export function assetBase(asset) {
+  return asset?.demoSrc ? asset.demoSrc.replace(/[^/]*$/, '') : ''
 }

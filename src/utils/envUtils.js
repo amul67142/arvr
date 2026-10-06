@@ -1,4 +1,8 @@
 import * as THREE from 'three'
+import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js'
+
+/** A real daytime sky, bundled with the app (Poly Haven, CC0, 1.4 MB). */
+export const DAY_SKY_URL = '/env/sky-day.hdr'
 
 /**
  * Lighting is built locally rather than pulled from a CDN HDRI. Drei's
@@ -15,19 +19,19 @@ export const TIME_OF_DAY = {
     skyTop: '#b9cadb',
     skyBottom: '#e6e1d8',
     groundColor: '#a8a296',
-    sunColor: '#fff4e2',
-    sunIntensity: 2.1,
+    sunColor: '#fff3df',
+    sunIntensity: 2.9, // a clear-day sun: lit faces bright, shaded faces cool
     ambientColor: '#b8c6d6',
-    ambientIntensity: 0.18,
-    hemiSky: '#cfdced',
-    hemiGround: '#9c948a',
-    hemiIntensity: 0.32,
-    envIntensity: 0.72,
+    ambientIntensity: 0.08,
+    hemiSky: '#bcd3ee',
+    hemiGround: '#a39a8c',
+    hemiIntensity: 0.22,
+    envIntensity: 0.85,
     sunElevation: 0.58,
     sunAzimuth: 0.9,
-    pageTop: '#c4d2df',
-    pageBottom: '#eae5dc',
-    shadowOpacity: 0.42,
+    pageTop: '#8fb3d9',
+    pageBottom: '#e3e8ee',
+    shadowOpacity: 0.48,
   },
   night: {
     key: 'night',
@@ -160,4 +164,21 @@ export function applyPageGradient(topHex, bottomHex) {
   const root = document.documentElement
   root.style.setProperty('--sky-top', topHex)
   root.style.setProperty('--sky-bottom', bottomHex)
+}
+
+/**
+ * Load the bundled sky HDRI and prefilter it for reflections. It replaces the
+ * baked day gradient once ready: glass then mirrors real sky and cloud. It is
+ * served by the app itself, so there is no CDN to stall; if it fails anyway,
+ * the gradient simply stays.
+ */
+export function loadSkyEnvironment(renderer, url = DAY_SKY_URL) {
+  return new HDRLoader().loadAsync(url).then((hdr) => {
+    hdr.mapping = THREE.EquirectangularReflectionMapping
+    const pmrem = new THREE.PMREMGenerator(renderer)
+    const target = pmrem.fromEquirectangular(hdr)
+    hdr.dispose()
+    pmrem.dispose()
+    return { texture: target.texture, dispose: () => target.dispose() }
+  })
 }

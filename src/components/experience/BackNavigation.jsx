@@ -9,10 +9,14 @@ import { ArrowIcon } from '../common/Icons'
  * button only appears once there is somewhere to go back to.
  */
 export default function BackNavigation() {
-  const { project, currentView, currentParams, canGoBack, goBack, history, views } =
+  const { project, currentView, currentParams, canGoBack, goBack, history, views, embed } =
     useExperience()
 
   if (!project || !currentView) return null
+
+  // An embed can drop the name plate (?brand=0): the host page usually has the
+  // project's name above the frame already. The way back always stays.
+  const showPlate = !embed || embed.brand
 
   const lastEntry = canGoBack ? history[history.length - 1] : null
   const previous = lastEntry
@@ -35,17 +39,19 @@ export default function BackNavigation() {
         </button>
       ) : null}
 
-      <div className="glass pointer-events-auto px-5 py-3.5">
-        <p className="label text-white/45">{project.name}</p>
-        <p className="mt-1 max-w-[46vw] truncate text-[13px] font-light text-white/85 md:max-w-xs">
-          {currentParams?.title ?? currentView.name}
-        </p>
-        {currentParams?.subtitle ? (
-          <p className="mt-0.5 max-w-[46vw] truncate text-[11px] text-white/40 md:max-w-xs">
-            {currentParams.subtitle}
+      {showPlate ? (
+        <div className="glass pointer-events-auto px-5 py-3.5">
+          <p className="label text-white/45">{project.name}</p>
+          <p className="mt-1 max-w-[46vw] truncate text-[13px] font-light text-white/85 md:max-w-xs">
+            {currentParams?.title ?? currentView.name}
           </p>
-        ) : null}
-      </div>
+          {currentParams?.subtitle ? (
+            <p className="mt-0.5 max-w-[46vw] truncate text-[11px] text-white/40 md:max-w-xs">
+              {currentParams.subtitle}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
     </nav>
   )
 }

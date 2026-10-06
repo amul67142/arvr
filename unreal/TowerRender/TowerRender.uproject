@@ -1,0 +1,18 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "5.8",
+	"Category": "",
+	"Description": "Tower orbit and 360 renders for the AR/VR real-estate viewer.",
+	"Plugins": [
+		{ "Name": "PythonScriptPlugin", "Enabled": true },
+		{ "Name": "EditorScriptingUtilities", "Enabled": true },
+		{ "Name": "SequencerScripting", "Enabled": true },
+		{ "Name": "MovieRenderPipeline", "Enabled": true },
+		{ "Name": "MoviePipelineMaskRenderPass", "Enabled": true },
+		{ "Name": "PanoramicCapture", "Enabled": true },
+		{ "Name": "InterchangeEditor", "Enabled": true },
+		{ "Name": "DatasmithImporter", "Enabled": true },
+		{ "Name": "SunPosition", "Enabled": true },
+		{ "Name": "HDRIBackdrop", "Enabled": true }
+	]
+}

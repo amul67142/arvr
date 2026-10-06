@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Council Verdict — Am I on the right path?</title>
+<style>
+  :root {
+    --ink: #0a0a0a;
+    --muted: #5a6178;
+    --line: #e3e7f0;
+    --paper: #ffffff;
+    --wash: #f6f7fb;
+    --accent: #2b5cff;
+    --warn: #b4531a;
+    --ok: #17794a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 48px 24px 80px;
+    background: var(--wash);
+    color: var(--ink);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Arial, sans-serif;
+  }
+  main { max-width: 860px; margin: 0 auto; }
+  .eyebrow {
+    font-size: 11px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 10px;
+  }
+  h1 { font-size: 34px; line-height: 1.15; letter-spacing: -.02em; margin: 0 0 12px; }
+  .sub { color: var(--muted); margin: 0 0 32px; }
+  section {
+    background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
+    padding: 26px 28px; margin: 0 0 18px;
+  }
+  h2 { font-size: 19px; letter-spacing: -.01em; margin: 0 0 14px; }
+  h3 { font-size: 15px; margin: 22px 0 6px; }
+  p, li { color: #23262f; }
+  ul { padding-left: 20px; margin: 8px 0; }
+  li { margin: 6px 0; }
+  .verdict { border-color: #bfcdff; background: #f2f5ff; }
+  .verdict h2 { color: var(--accent); }
+  .first {
+    border: 1px solid var(--ink); background: var(--ink); color: #fff; border-radius: 10px;
+    padding: 24px 28px; margin: 0 0 18px;
+  }
+  .first h2 { color: #fff; margin-bottom: 8px; }
+  .first p { color: #d6dae6; margin: 0; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .pos { font-weight: 600; white-space: nowrap; }
+  .agree { color: var(--ok); }
+  .split { color: var(--warn); }
+  details { border-top: 1px solid var(--line); padding: 12px 0 2px; }
+  details:first-of-type { border-top: 0; }
+  summary { cursor: pointer; font-weight: 600; font-size: 15px; }
+  summary::marker { color: var(--accent); }
+  details p { font-size: 15px; color: #34384a; }
+  .tag {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; padding: 3px 8px; border-radius: 99px; margin-left: 8px;
+    background: #eef1f9; color: var(--muted);
+  }
+  footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 30px; }
+  code { background: #eef1f9; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">LLM Council · 24 September 2026</p>
+  <h1>Am I on the right path?</h1>
+  <p class="sub">
+    Render-driven real-estate sales platform, and the Trident Realty proposal.
+    Five advisors answered independently, reviewed each other anonymously, and a
+    chairman synthesised the verdict.
+  </p>
+
+  <section class="verdict">
+    <h2>The verdict</h2>
+    <p><strong>Right path, wrong order.</strong> The render-driven approach is correct and the
+    demo already proves most of it. But the proposal sells a capability whose central
+    mechanism — turning a render's mask or geometry into clickable per-flat polygons —
+    has never been executed once. Four of five advisors led with that same finding.</p>
+    <p>Fix it this week, at your own cost, on synthetic assets you generate yourself,
+    before a rupee of the client's render budget is committed. Make <strong>camera + proxy
+    projection the primary</strong> hotspot technique and Cryptomatte the fallback, with
+    <strong>manual tracing as the declared Plan C</strong> so no render delivery can ever produce a
+    dead end. <strong>Strip token collection</strong> out of Phase 2 into a later, separately priced
+    phase. And before pricing anything, ask Trident two questions the proposal never
+    asks: what is your launch date, and which CRM do you already use?</p>
+  </section>
+
+  <div class="first">
+    <h2>The one thing to do first</h2>
+    <p>Build the hotspot pipeline this week against a synthetic scene you make yourself:
+    model a crude tower, render one beauty frame plus an object-ID pass, export the
+    camera, and make one specific balcony on one specific floor clickable in the existing
+    viewer, end to end. That single clickable balcony de-risks the whole engagement — and
+    it is a better proposal than the proposal.</p>
+  </div>
+
+  <section>
+    <h2>Where the advisors landed</h2>
+    <table>
+      <thead>
+        <tr><th>Advisor</th><th>Position</th><th>On payments in Phase 2</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="pos">Contrarian</td><td>Pipeline doesn't exist; pilot batch is undefined in code</td><td class="agree">Cut to Phase 3</td></tr>
+        <tr><td class="pos">First Principles</td><td>You sell a render pipeline, and you don't control it yet</td><td class="agree">Drop entirely</td></tr>
+        <tr><td class="pos">Expansionist</td><td>It's a product, not a project — licence it, sign more developers</td><td class="split">Build it — it's the lock-in</td></tr>
+        <tr><td class="pos">Outsider</td><td>Phase 2 can't be priced or scheduled, and the buyer can't see why it beats a video</td><td class="agree">A distraction</td></tr>
+        <tr><td class="pos">Executor</td><td>One thing to prove, one thing to cut; three gates before renders are ordered</td><td class="agree">Cut; hand off to the developer</td></tr>
+      </tbody>
+    </table>
+    <h3>Agreed, 4 of 5</h3>
+    <ul>
+      <li>The mask-to-polygon converter does not exist — this is the existential gap.</li>
+      <li>Validate on synthetic assets before the client commissions anything.</li>
+      <li>The pilot batch is a paragraph, not a tested procedure.</li>
+      <li>Token payment collection is liability without proportionate revenue, for now.</li>
+    </ul>
+    <h3>Genuine clashes</h3>
+    <ul>
+      <li><strong>Payments:</strong> lock-in (Expansionist) versus relationship-ending risk
+        (everyone else). They disagree on timing, not on direction.</li>
+      <li><strong>Project versus product:</strong> the productisation instinct is right, and
+        premature by exactly one successful delivery.</li>
+      <li><strong>Primary hotspot technique:</strong> masks, or camera + proxy projection.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Blind spots the peer review caught</h2>
+    <ul>
+      <li><strong>Manual tracing is a Plan C that always works.</strong> A designer can trace
+        13–20 stop frames in hours. The automation is an efficiency play, not a
+        prerequisite — which defuses the whole "what if it doesn't work" fear.</li>
+      <li><strong>Camera + proxy should probably be primary.</strong> The studio already has
+        per-unit geometry; exporting the camera path and a box-per-flat proxy gives exact
+        hotspots at <em>every</em> frame with no EXR parsing and no anti-aliasing gaps
+        between adjacent flats. Cryptomatte was built for compositing, not region
+        extraction.</li>
+      <li><strong>The client's calendar rules.</strong> Nobody asked Trident's launch date,
+        RERA deadline, or whether this is a competitive bid.</li>
+      <li><strong>Indian market mechanics.</strong> Tokens usually move by cheque or RTGS into
+        a designated account; developers already run Sell.do / LeadSquared / In4Velocity,
+        which block inventory and generate cost sheets; the buyer is reached through
+        relationships, not documents.</li>
+      <li><strong>Founder capacity is the likeliest failure</strong>, not the pipeline. If
+        Phase 1 slips, renders are never ordered and Phase 2 never happens.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>The advisors, in full</h2>
+
+    <details>
+      <summary>The Contrarian <span class="tag">what will fail</span></summary>
+      <p>The mask pipeline does not exist. There is zero code that reads a Cryptomatte EXR,
+      decodes an Object-ID pass, or converts a mask into polygon hotspots. The render brief
+      tells the studio a script converts every mask into clean outlines automatically. That
+      script has not been written. The only outline code (<code>build-horizon.mjs</code>)
+      does luminance-gradient edge detection on drone footage — a different technique that
+      cannot parse Cryptomatte data.</p>
+      <p>The pilot batch is the only safety net and it is too vague. If it arrived tomorrow
+      he would be writing the converter under time pressure — debugging EXR parsing
+      (Cryptomatte encodes object hashes in float channels), anti-aliasing artefacts at mask
+      boundaries, and whether V-Ray, Corona and Redshift produce compatible output. Weeks of
+      R&amp;D, not a day's validation.</p>
+      <p>The payment scope is reckless: no backend, no database, no auth today, yet Phase 2
+      needs atomic booking with concurrency locks, webhook verification, refunds, RERA audit
+      trails and PCI-adjacent security — while simultaneously building the mask pipeline,
+      stop frames, inventory and salesman mode. Build the converter this week against
+      synthetic masks made in Blender. Strip payments to Phase 3. Every hard unsolved
+      problem is stacked into one delivery window, and when one slips they all slip.</p>
+    </details>
+
+    <details>
+      <summary>The First Principles Thinker <span class="tag">what are we solving</span></summary>
+      <p>He is asking the wrong question. Not "am I on the right path" but "what am I
+      actually selling, and do I control it?" What he sells is a render pipeline, not
+      software — the React app, the viewer, the inventory engine are commodities. The
+      differentiation is that renders go in and interactive experiences come out. But the
+      converter that justifies asking a client to spend lakhs on Cryptomatte passes does not
+      exist. There is a document describing it.</p>
+      <p>The single existential question is whether he can take a mask, extract regions,
+      convert them to screen-space polygons and overlay them on the matching orbit frame,
+      reliably, at production quality. Everything else is known-solvable. Stop writing
+      proposals; build the pipeline this week on synthetic renders, then show the client a
+      demo where you click a specific balcony and it responds. That demo is the proposal.</p>
+      <p>Drop payments: a solo founder adding PCI, RERA, refunds and double-booking
+      prevention to a property transaction for a gateway integration fee is an absurd
+      liability-to-revenue ratio.</p>
+    </details>
+
+    <details>
+      <summary>The Expansionist <span class="tag">the upside being missed</span></summary>
+      <p>This is a platform play disguised as a client engagement, and he is underpricing
+      what he has. The demo already does what Panom charges lakhs per project for. Trident
+      is the first deployment of a product, not the destination. Thousands of RERA-registered
+      projects launch annually; incumbents charge per-project SaaS fees he could undercut
+      while earning multiples of a services contract.</p>
+      <p>The render dependency is a moat: once the pipeline works with one studio, it is a
+      repeatable integration pattern. Package it and studios become channel partners who
+      recommend the platform because it makes their renders interactive. Payments are not
+      scope creep but lock-in — once a booking closes through the system, switching cost is
+      infinite, and every competitor demo without a Book Now button looks like a toy.</p>
+      <p>Price Trident as a flagship deployment with a per-project recurring licence. Phase 1
+      near cost to get in fast; the money is in Phase 2 recurring and every subsequent
+      project at configuration pricing. Then sign two more developers on the case study.</p>
+    </details>
+
+    <details>
+      <summary>The Outsider <span class="tag">fresh eyes</span></summary>
+      <p>He is selling a two-phase project where Phase 2 is the entire point, yet Phase 2
+      cannot be priced, cannot be scheduled, and depends on assets he does not control. The
+      client sees a clear Phase 1 website — every agency sells those — and a Phase 2 that
+      says "trust us, the magic works, but your studio must produce a very specific
+      deliverable we have never processed from a real client." The pilot batch idea is good
+      but buried in an appendix the decision-maker will never read.</p>
+      <p>The gap is not "will the renders arrive" but "will he know what to do with them when
+      they do." And a home buyer would ask: why can I not just watch a video walkthrough on
+      YouTube? The proposal never answers that. The immersive case is obvious to him and
+      invisible to the person signing the cheque.</p>
+    </details>
+
+    <details>
+      <summary>The Executor <span class="tag">Monday morning</span></summary>
+      <p>One thing to prove, one thing to cut.</p>
+      <p><strong>Prove:</strong> before any renders are commissioned, build a script that takes
+      a single test Object-ID or Cryptomatte image, runs connected-component extraction
+      (OpenCV, or sharp plus flood-fill), names each region, and outputs the polygon JSON the
+      existing viewer already consumes. Test with a mock — an old stop frame with masks, or a
+      fake one with flat colour regions. Pixel-accurate clickable outlines within a week, or
+      he knows before anyone spends money.</p>
+      <p><strong>Cut:</strong> payment collection. Even with money settling to the developer's
+      account, he still writes the webhook handler, the atomic status flip and the receipt
+      generator. Let the salesman block the unit and generate the cost sheet, then hand off —
+      90% of the wow factor, none of the liability.</p>
+      <p>Three gates before ordering renders: pipeline test on a dummy frame; artist confirms
+      Cryptomatte or Object-ID with named objects; pilot batch processed end to end. Request
+      the FBX camera alongside the masks as option B insurance.</p>
+    </details>
+  </section>
+
+  <section>
+    <h2>Peer review highlights</h2>
+    <details>
+      <summary>Which response was strongest, and why</summary>
+      <p>Three of five reviewers picked <strong>the Contrarian</strong> for naming the exact
+      technical gap — no mask-ingestion code, Cryptomatte's float-channel hashes, renderer
+      incompatibility, anti-aliasing at boundaries — and connecting it to the real schedule
+      risk. Two picked <strong>the First Principles Thinker</strong> for the more useful
+      framing: what am I selling, and do I control it?</p>
+    </details>
+    <details>
+      <summary>Which response had the biggest blind spot</summary>
+      <p>All five reviewers named <strong>the Expansionist</strong>. Its strategy is sound in a
+      world where the pipeline already works; it assumes exactly the thing that is unproven.
+      "File the IP" on code that has never ingested a single mask frame was the line that drew
+      the most fire. The upside case survives — but only after one delivery proves the
+      mechanism.</p>
+    </details>
+    <details>
+      <summary>What every advisor missed</summary>
+      <p>Manual tracing as an always-works fallback; camera + proxy projection as the better
+      primary technique; the client's launch calendar and possible competing bids; how Indian
+      developers actually collect tokens and which CRM already blocks their inventory; and the
+      founder's own capacity across three concurrent projects — which the capacity reviewer
+      called the highest-probability failure mode of all.</p>
+    </details>
+  </section>
+
+  <footer>
+    Counciled 24 September 2026 · 5 advisors, 5 peer reviews, 1 chairman ·
+    full transcript in <code>docs/council/council-transcript-20260924.md</code>
+  </footer>
+</main>
+</body>
+</html>

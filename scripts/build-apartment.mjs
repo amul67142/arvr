@@ -16,7 +16,7 @@
  * Coordinates are metres. Front facade on z = 0 (balconies at z < 0),
  * entrance on the back at z = 11. Floor level y = 0, ceiling at 2.9 m.
  */
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -77,14 +77,14 @@ const ROOMS = [
   { id: 'Balcony', label: 'Balcony', mat: 'deck', rect: [5, -2, 12, 0], y: -0.04, view: [11.3, -0.4, 5.5, -1.6] },
   { id: 'Kitchen', label: 'Kitchen', mat: 'kitchenTile', rect: [5, 7, 9, 11], view: [8.5, 7.5, 5.3, 10.6] },
   { id: 'Utility', label: 'Utility', mat: 'deck', rect: [5, 11, 9, 12.2], y: -0.04, view: [8.6, 11.3, 5.3, 11.9] },
-  { id: 'Master_Bedroom', label: 'Master Bedroom', mat: 'parquet', rect: [12, 0, 17, 5], view: [12.8, 0.7, 16.2, 4.4] },
+  { id: 'Master_Bedroom', label: 'Master Bedroom', mat: 'parquet', rect: [12, 0, 17, 5], view: [14.1, 0.55, 15.3, 4.4] },
   { id: 'Master_Balcony', label: 'Master Balcony', mat: 'deck', rect: [12, -1.6, 17, 0], y: -0.04, view: [12.5, -0.3, 16.8, -1.3] },
   { id: 'Walk_In_Wardrobe', label: 'Walk-in Wardrobe', mat: 'oak', rect: [12, 5, 14, 8], view: [13.4, 5.3, 12.6, 7.8] },
   { id: 'Master_Bath', label: 'Master Bath', mat: 'bathFloor', rect: [14, 5, 17, 8], view: [14.5, 5.4, 16.8, 6.4] },
   { id: 'Bedroom_2', label: 'Bedroom 2', mat: 'oak', rect: [0, 0, 5, 4.5], view: [4.2, 4.0, 0.5, 1.2] },
   { id: 'Hall', label: 'Bedroom Hall', mat: 'marble', rect: [2.6, 4.5, 5, 6.5], view: [4.7, 5.5, 2.8, 5.5] },
   { id: 'Common_Bath', label: 'Common Bath', mat: 'bathFloor', rect: [0, 4.5, 2.6, 6.5], view: [2.2, 5.9, 0.3, 5.3] },
-  { id: 'Bedroom_3', label: 'Bedroom 3', mat: 'oak', rect: [0, 6.5, 5, 11], view: [4.3, 6.9, 0.8, 10.2] },
+  { id: 'Bedroom_3', label: 'Bedroom 3', mat: 'oak', rect: [0, 6.5, 5, 11], view: [1.3, 6.95, 4.5, 9.4] },
 ]
 
 /**
@@ -120,8 +120,24 @@ const walls = []
 const rotY = (degrees) => new THREE.Matrix4().makeRotationY((degrees * Math.PI) / 180)
 const at = (x, y, z) => new THREE.Matrix4().makeTranslation(x, y, z)
 
+// Every wall, door and window is also recorded for the 2D plan that ships
+// with the walkthrough (unit-3bhk.plan.json), so the plan a buyer reads and
+// the flat they walk are the same drawing.
+const planWalls = []
+const recordWall = (axis, at, from, to, thickness, openings, height) =>
+  planWalls.push({
+    axis,
+    at,
+    from,
+    to,
+    thickness,
+    low: height < 2,
+    openings: openings.map((o) => ({ from: o.x, width: o.w, kind: o.y === 0 ? 'door' : 'window' })),
+  })
+
 /** Wall running along +X at z, from x0 to x1. */
 function wallX(name, z, x0, x1, thickness, openings = [], material = 'wall', height = CEILING) {
+  recordWall('x', z, x0, x1, thickness, openings, height)
   walls.push(
     s.wall(name, material, { length: x1 - x0, height, thickness, openings }, at(x0, 0, z)),
   )
@@ -129,6 +145,7 @@ function wallX(name, z, x0, x1, thickness, openings = [], material = 'wall', hei
 
 /** Wall running along +Z at x, from z0 to z1. */
 function wallZ(name, x, z0, z1, thickness, openings = [], material = 'wall', height = CEILING) {
+  recordWall('z', x, z0, z1, thickness, openings, height)
   walls.push(
     s.wall(
       name,
@@ -294,45 +311,7 @@ J(
 // Utility: washing machine.
 J(s.box('Washer', 'porcelain', [8.2, -0.04, 11.2], [8.8, 0.82, 11.8]))
 
-/** A modern upholstered bed: plinth, mattress, duvet, headboard, pillows. */
-function bed(name, { x0, z0, x1, z1, head }) {
-  // `head` is the side the headboard sits on: 'x0' | 'x1' | 'z0' | 'z1'.
-  const nodes = [
-    s.box(`${name}_Plinth`, 'walnut', [x0, 0.08, z0], [x1, 0.32, z1]),
-    s.box(`${name}_Mattress`, 'fabricLinen', [x0 + 0.03, 0.32, z0 + 0.03], [x1 - 0.03, 0.55, z1 - 0.03]),
-  ]
-  const duvet = { x0: x0 + 0.02, z0: z0 + 0.02, x1: x1 - 0.02, z1: z1 - 0.02 }
-  const pillow = []
-  if (head === 'x0') {
-    duvet.x0 += 0.55
-    nodes.push(s.box(`${name}_Headboard`, 'fabricWarm', [x0 - 0.1, 0.08, z0 - 0.05], [x0, 1.25, z1 + 0.05]))
-    const mid = (z0 + z1) / 2
-    pillow.push([x0 + 0.08, mid - 0.72, x0 + 0.5, mid - 0.06], [x0 + 0.08, mid + 0.06, x0 + 0.5, mid + 0.72])
-  }
-  if (head === 'x1') {
-    duvet.x1 -= 0.55
-    nodes.push(s.box(`${name}_Headboard`, 'fabricWarm', [x1, 0.08, z0 - 0.05], [x1 + 0.1, 1.25, z1 + 0.05]))
-    const mid = (z0 + z1) / 2
-    pillow.push([x1 - 0.5, mid - 0.72, x1 - 0.08, mid - 0.06], [x1 - 0.5, mid + 0.06, x1 - 0.08, mid + 0.72])
-  }
-  if (head === 'z1') {
-    duvet.z1 -= 0.55
-    nodes.push(s.box(`${name}_Headboard`, 'fabricWarm', [x0 - 0.05, 0.08, z1], [x1 + 0.05, 1.3, z1 + 0.1]))
-    const mid = (x0 + x1) / 2
-    pillow.push([mid - 0.82, z1 - 0.5, mid - 0.06, z1 - 0.08], [mid + 0.06, z1 - 0.5, mid + 0.82, z1 - 0.08])
-  }
-  nodes.push(
-    s.box(`${name}_Duvet`, 'fabricSage', [duvet.x0, 0.55, duvet.z0], [duvet.x1, 0.62, duvet.z1]),
-  )
-  pillow.forEach(([a, b, c, d], index) =>
-    nodes.push(s.box(`${name}_Pillow_${index + 1}`, 'fabricLinen', [a, 0.55, b], [c, 0.72, d])),
-  )
-  return nodes
-}
-
-J(...bed('Bed_Master', { x0: 14.6, z0: 2.9, x1: 16.4, z1: 4.88, head: 'z1' }))
-J(...bed('Bed_2', { x0: 0.12, z0: 1.4, x1: 2.12, z1: 3.0, head: 'x0' }))
-J(...bed('Bed_3', { x0: 2.85, z0: 8.1, x1: 4.84, z1: 9.6, head: 'x1' }))
+// Beds come from the designer's 3ds Max bedroom — see REAL_BEDROOM below.
 
 // Wardrobes.
 J(
@@ -415,10 +394,7 @@ await F('planter_box_01', { position: [11.4, -0.04, -1.0], rotation: 90, simplif
 await F('potted_plant_04', { position: [5.4, -0.04, -1.7] })
 
 // Master bedroom.
-await F('side_table_tall_01', { position: [14.25, 0, 4.55] })
-await F('side_table_tall_01', { position: [16.72, 0, 4.55] })
-await F('mid_century_lounge_chair', { position: [13.1, 0, 1.2], rotation: 140 })
-await F('hanging_picture_frame_01', { position: [15.5, 1.45, 4.92] })
+await F('hanging_picture_frame_01', { position: [15.28, 1.95, 4.92] })
 await F('ceiling_fan', { position: [15.2, CEILING - 0.52, 2.6], simplifyRatio: 0.4 })
 
 // Master balcony, with the split-AC unit every Gurugram balcony has.
@@ -426,19 +402,40 @@ await F('exterior_aircon_unit', { position: [16.45, -0.04, -0.45], rotation: -90
 await F('planter_box_01', { position: [13.2, -0.04, -1.35], simplifyRatio: 0.5 })
 
 // Bedroom 2.
-await F('side_table_01', { position: [0.4, 0, 0.8] })
-await F('side_table_01', { position: [0.4, 0, 3.6] })
-await F('potted_plant_04', { position: [0.4, 0.55, 0.8] })
 await F('ceiling_fan', { position: [2.5, CEILING - 0.52, 2.25], simplifyRatio: 0.4 })
 
 // Bedroom 3.
-await F('side_table_tall_01', { position: [4.6, 0, 9.95] })
 await F('dining_chair_02', { position: [1.05, 0, 8.35], rotation: -90, simplifyRatio: 0.35 })
 await F('desk_lamp_arm_01', { position: [0.35, 0.76, 7.85], rotation: 90, simplifyRatio: 0.3 })
 await F('ceiling_fan', { position: [2.5, CEILING - 0.52, 8.7], simplifyRatio: 0.4 })
 
 // Utility.
 await F('exterior_aircon_unit', { position: [6.1, -0.04, 11.75], scale: 0.55, simplifyRatio: 0.4 })
+
+// ------------------------------------------------ the designer's bedroom --
+
+// The bed set from the real 3ds Max bedroom (public/demo/master-bedroom.glb,
+// made by scripts/prepare-interior.mjs): bed, bedding, wall-hung nightstands,
+// what stands on them and the two wall lamps — 3.25 m wide in all. In the
+// source the headboard wall is at z = -2.01 and the bed runs toward +z, so
+// the piece's origin is the middle of the headboard at floor level.
+const REAL_BEDROOM = resolve(dirname(fileURLToPath(import.meta.url)), '../public/demo/master-bedroom.glb')
+const bedSet = await s.piece('Designer_Bed_Set', REAL_BEDROOM, {
+  box: [[-2.4, 0, -2.1], [0.95, 1.5, 0.3]],
+  origin: [-0.73, 0.06, -2.01],
+})
+// Its lounge sofa: back to the wall at x = -3.37, facing +x.
+const sofa = await s.piece('Designer_Sofa', REAL_BEDROOM, {
+  box: [[-3.4, -0.1, -1.05], [-1.85, 0.9, 0]],
+  origin: [-3.37, 0.06, -0.515],
+})
+
+furniture.push(
+  bedSet([15.28, 0, 4.94], 180), // master: against the bath wall
+  bedSet([0.11, 0, 2.2], 90), // bedroom 2: against the left wall
+  bedSet([4.94, 0, 8.8], -90), // bedroom 3: against the kitchen wall
+  sofa([12.06, 0, 1.6], 0), // master: facing the bed across the room
+)
 
 // ------------------------------------------------------- surroundings --
 
@@ -460,6 +457,22 @@ s.add(
 )
 
 mkdirSync(dirname(OUT), { recursive: true })
+writeFileSync(
+  OUT.replace(/\.glb$/, '.plan.json'),
+  JSON.stringify({
+    type: '3BHK',
+    unit: 'metres',
+    bounds: [0, -2, 17, 12.2],
+    rooms: ROOMS.map((room) => ({
+      id: room.id,
+      label: room.label,
+      rect: room.rect,
+      area: area(room.rect),
+      outdoor: /Balcony|Utility/.test(room.id),
+    })),
+    walls: planWalls,
+  }),
+)
 const { out, stats } = await s.write(OUT)
 const { statSync } = await import('node:fs')
 console.log(
